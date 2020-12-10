@@ -1,6 +1,6 @@
 ##Retrieve all arguments
 [CmdletBinding()]
-param($ARMTemplateFilePath)
+param($ARMTemplateFilePath)#,[bool]$SummaryOutput = $true,[bool]$VerboseOutput = $false,[bool]$debug = $false)
 
 
 #STEP 3:
@@ -928,7 +928,7 @@ $VerboseDetailTable = $VerboseDetailTable | Sort-Object {$importance.Indexof($_.
 
 $tab = [char]9
 ForEach ($Detail in $VerboseDetailTable) {
-    if(($VerboseDetailTable.Severity -contains "High") -or ($VerboseDetailTable.Severity -contains "Medium")) {
+    if(($Detail.Severity -eq "High") -or ($Detail.Severity -eq "Medium")) {
         Write-Host "##vso[task.LogIssue type=error;]" $Detail.Component $tab $Detail.CheckDetail $tab $Detail.Name
     } elseif($Detail.Severity -eq "Low") {
         Write-Host "##vso[task.LogIssue type=warning;]" $Detail.Component $tab $Detail.CheckDetail $tab $Detail.Name
