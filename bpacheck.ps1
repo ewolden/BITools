@@ -26,7 +26,7 @@ $ADF = Get-Content $ARMTemplateFilePath | ConvertFrom-Json
 $LinkedServices = $ADF.resources | Where-Object {$_.type -eq "Microsoft.DataFactory/factories/linkedServices"}
 $Datasets = $ADF.resources | Where-Object {$_.type -eq "Microsoft.DataFactory/factories/datasets"}
 $Pipelines = $ADF.resources | Where-Object {$_.type -eq "Microsoft.DataFactory/factories/pipelines"}
-$Activities = $Pipelines.properties.activities #regardless of pipeline
+#$Activities = $Pipelines.properties.activities #regardless of pipeline
 $DataFlows = $ADF.resources | Where-Object {$_.type -eq "Microsoft.DataFactory/factories/dataflows"}
 $Triggers = $ADF.resources | Where-Object {$_.type -eq "Microsoft.DataFactory/factories/triggers"}
 
@@ -157,77 +157,77 @@ $CheckCounter = 0
 #############################################################################################
 #Check pipeline with an impossible execution chain.
 #############################################################################################
-$CheckNumber += 1
-$CheckDetail = "Pipeline(s) with an impossible AND/OR activity execution chain."
-if($debug) {Write-Host "Running check... " $CheckDetail}
-$Severity = "High"
-ForEach($Pipeline in $Pipelines)
-{
-    $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
-    $ActivityFailureDependencies = New-Object System.Collections.ArrayList($null)
-    $ActivitySuccessDependencies = New-Object System.Collections.ArrayList($null)
+# $CheckNumber += 1
+# $CheckDetail = "Pipeline(s) with an impossible AND/OR activity execution chain."
+# if($debug) {Write-Host "Running check... " $CheckDetail}
+# $Severity = "High"
+# ForEach($Pipeline in $Pipelines)
+# {
+#     $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
+#     $ActivityFailureDependencies = New-Object System.Collections.ArrayList($null)
+#     $ActivitySuccessDependencies = New-Object System.Collections.ArrayList($null)
 
-    #get upstream failure dependants
-    ForEach($Activity in $Pipeline.properties.activities)
-    {
-        if($Activity.dependsOn.Count -gt 1)
-        {
-            ForEach($UpStreamActivity in $Activity.dependsOn)
-            {
-                if($UpStreamActivity.dependencyConditions.Contains('Failed'))
-                {  
-                    if(-not ($ActivityFailureDependencies -contains $UpStreamActivity.activity))
-                    {
-                        [void]$ActivityFailureDependencies.Add($UpStreamActivity.activity)
-                    }
-                }
-            }
-        }
-    }
+#     #get upstream failure dependants
+#     ForEach($Activity in $Pipeline.properties.activities)
+#     {
+#         if($Activity.dependsOn.Count -gt 1)
+#         {
+#             ForEach($UpStreamActivity in $Activity.dependsOn)
+#             {
+#                 if(($UpStreamActivity.dependencyConditions.Contains('Failed')) -or ($UpStreamActivity.dependencyConditions.Contains('Skipped')))
+#                 {  
+#                     if(-not ($ActivityFailureDependencies -contains $UpStreamActivity.activity))
+#                     {
+#                         [void]$ActivityFailureDependencies.Add($UpStreamActivity.activity)
+#                     }
+#                 }
+#             }
+#         }
+#     }
 
-    #get downstream success dependants
-    ForEach($ActivityDependant in $ActivityFailureDependencies)
-    {
-        ForEach($Activity in $Pipeline.properties.activities | Where-Object {$_.name -eq $ActivityDependant})
-        {
-            if($Activity.dependsOn.Count -ge 1)
-            {
-                ForEach($DownStreamActivity in $Activity.dependsOn)
-                {
-                    if($DownStreamActivity.dependencyConditions.Contains('Succeeded'))
-                    {                  
-                        if(-not ($ActivitySuccessDependencies -contains $DownStreamActivity.activity))
-                        {
-                            [void]$ActivitySuccessDependencies.Add($DownStreamActivity.activity)
-                        }
-                    }
-                }
-            }
-        }
-    }
+#     #get downstream success dependants
+#     ForEach($ActivityDependant in $ActivityFailureDependencies)
+#     {
+#         ForEach($Activity in $Pipeline.properties.activities | Where-Object {$_.name -eq $ActivityDependant})
+#         {
+#             if($Activity.dependsOn.Count -ge 1)
+#             {
+#                 ForEach($DownStreamActivity in $Activity.dependsOn)
+#                 {
+#                     if($DownStreamActivity.dependencyConditions.Contains('Succeeded'))
+#                     {                  
+#                         if(-not ($ActivitySuccessDependencies -contains $DownStreamActivity.activity))
+#                         {
+#                             [void]$ActivitySuccessDependencies.Add($DownStreamActivity.activity)
+#                         }
+#                     }
+#                 }
+#             }
+#         }
+#     }
     
-    #compare dependants - do they exist in both lists?
-    $Problems = $ActivityFailureDependencies | Where-Object {$ActivitySuccessDependencies -contains $_}
-    if($Problems.Count -gt 0)
-    {
-        $CheckCounter += 1
-        if($VerboseOutput -or ($Severity -eq "High"))
-        {  
-            $VerboseDetailTable += [PSCustomObject]@{
-                Component = "Pipeline";
-                Name = $PipelineName;
-                CheckDetail = "Has an impossible AND/OR activity execution chain.";
-                Severity = $Severity
-            }
-        }
-    }
-}
-$SummaryTable += [PSCustomObject]@{
-    IssueCount = $CheckCounter; 
-    CheckDetail = $CheckDetail;
-    Severity = $Severity
-}
-$CheckCounter = 0
+#     #compare dependants - do they exist in both lists?
+#     $Problems = $ActivityFailureDependencies | Where-Object {$ActivitySuccessDependencies -contains $_}
+#     if($Problems.Count -gt 0)
+#     {
+#         $CheckCounter += 1
+#         if($VerboseOutput -or ($Severity -eq "High"))
+#         {  
+#             $VerboseDetailTable += [PSCustomObject]@{
+#                 Component = "Pipeline";
+#                 Name = $PipelineName;
+#                 CheckDetail = "Has an impossible AND/OR activity execution chain.";
+#                 Severity = $Severity
+#             }
+#         }
+#     }
+# }
+# $SummaryTable += [PSCustomObject]@{
+#     IssueCount = $CheckCounter; 
+#     CheckDetail = $CheckDetail;
+#     Severity = $Severity
+# }
+# $CheckCounter = 0
 
 #############################################################################################
 #Check for pipeline descriptions
@@ -459,7 +459,7 @@ ForEach ($Pipeline in $Pipelines){
                 {            
                     $VerboseDetailTable += [PSCustomObject]@{
                         Component = "Activity";
-                        Name = $Activity.Name + " in " + $PipelineName;;
+                        Name = $Activity.Name + " in " + $PipelineName;
                         CheckDetail = "ForEach does not have a batch count value set.";
                         Severity = $Severity
                     }
@@ -503,7 +503,7 @@ ForEach ($Pipeline in $Pipelines){
                 {            
                     $VerboseDetailTable += [PSCustomObject]@{
                         Component = "Activity";
-                        Name = $Activity.Name;
+                        Name = $Activity.Name + " in " + $PipelineName;;
                         CheckDetail = "ForEach has a batch size that is less than the service maximum.";
                         Severity = $Severity
                     }
@@ -525,7 +525,7 @@ $CheckCounter = 0
 $CheckNumber += 1
 $CheckDetail = "Linked Service(s) not using Azure Key Vault to store credentials."
 if($debug) {Write-Host "Running check... " $CheckDetail}
-$Severity = "High"
+$Severity = "Low"
 
 $LinkedServiceList = New-Object System.Collections.ArrayList($null)
 ForEach ($LinkedService in $LinkedServices | Where-Object {$_.properties.type -ne "AzureKeyVault"})
@@ -535,19 +535,20 @@ ForEach ($LinkedService in $LinkedServices | Where-Object {$_.properties.type -n
     ForEach($typeProperty in $typeProperties) 
     {
         $propValue = $LinkedService.properties.typeProperties | Select-Object -ExpandProperty $typeProperty.Name
-
-        #handle linked services with multiple type properties
-        if(([string]::IsNullOrEmpty($propValue.secretName))){
-            $LinkedServiceName = (CleanName -RawValue $LinkedService.name)
-            if(-not ($LinkedServiceList -contains $LinkedServiceName))
-            {
-                [void]$LinkedServiceList.Add($LinkedServiceName) #add linked service if secretName is missing
+        #if($propValue.authenticationType -ne "Anonymous") {
+            #handle linked services with multiple type properties
+            if(([string]::IsNullOrEmpty($propValue.secretName))){
+                $LinkedServiceName = (CleanName -RawValue $LinkedService.name)
+                if(-not ($LinkedServiceList -contains $LinkedServiceName))
+                {
+                    [void]$LinkedServiceList.Add($LinkedServiceName) #add linked service if secretName is missing
+                }
             }
-        }
-        if(-not([string]::IsNullOrEmpty($propValue.secretName))){
-            $LinkedServiceName = (CleanName -RawValue $LinkedService.name)
-            [void]$LinkedServiceList.Remove($LinkedServiceName) #remove linked service if secretName is then found
-        }
+            if(-not([string]::IsNullOrEmpty($propValue.secretName))){
+                $LinkedServiceName = (CleanName -RawValue $LinkedService.name)
+                [void]$LinkedServiceList.Remove($LinkedServiceName) #remove linked service if secretName is then found
+            }
+        #}
     }
 }
 $CheckCounter = $LinkedServiceList.Count
@@ -884,6 +885,39 @@ $SummaryTable += [PSCustomObject]@{
     }
 $CheckCounter = 0
 
+#############################################################################################
+#Check for SQL lookup timeouts
+#############################################################################################
+$CheckNumber += 1
+$CheckDetail = "Activitie(s) SQL lookup timeout set to default"
+if($debug) {Write-Host "Running check... " $CheckDetail}
+$Severity = "High"
+ForEach ($Pipeline in $Pipelines){
+    $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
+    ForEach ($Activity in $Pipeline.properties.activities | Where-Object {$_.type -eq "Lookup"})
+    {     
+        if(($Activity.typeProperties.source.type -eq 'AzureSqlSource')) {
+            if($Activity.typeProperties.source.queryTimeout -eq '02:00:00') {
+                $CheckCounter += 1
+                if($VerboseOutput -or ($Severity -eq "High"))
+                {            
+                    $VerboseDetailTable += [PSCustomObject]@{
+                        Component = "Activity";
+                        Name = $Activity.Name + " in " + $PipelineName;;
+                        CheckDetail = "SQL query timeout is set to default value";
+                        Severity = $Severity
+                    }
+                }
+            }
+        }
+    }
+}
+$SummaryTable += [PSCustomObject]@{
+        IssueCount = $CheckCounter; 
+        CheckDetail = $CheckDetail;
+        Severity = $Severity
+    }
+$CheckCounter = 0
 
 
 #############################################################################################
@@ -900,10 +934,10 @@ Write-Host "Total issue count:" ($SummaryTable | Measure-Object -Property IssueC
 
 $SummaryTable = $SummaryTable | Sort-Object {$importance.Indexof($_.Severity)}
 
-$SummaryTable | Where-Object {$_.IssueCount -ne 0} | Format-Table 
-    @{Label = "Issue Count";Expression = {$_.IssueCount}; Alignment="Center"}, 
-    @{Label = "Check Details";Expression = {$_.CheckDetail}}, 
-    @{Label = "Severity"
+$SummaryTable | Where-Object {$_.IssueCount -ne 0} | Format-Table @{
+    Label = "Issue Count";Expression = {$_.IssueCount}; Alignment="Center"}, @{
+    Label = "Check Details";Expression = {$_.CheckDetail}}, @{
+    Label = "Severity";
     Expression =
     {
         switch ($_.Severity)
@@ -918,6 +952,7 @@ $SummaryTable | Where-Object {$_.IssueCount -ne 0} | Format-Table
         "$e[${color}m$($_.Severity)${e}[0m"
     }
 }
+
 Write-Host $Hr
 
 Write-Host ""
