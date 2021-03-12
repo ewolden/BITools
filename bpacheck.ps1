@@ -2,9 +2,71 @@
 [CmdletBinding()]
 param($ARMTemplateFilePath)#,[bool]$SummaryOutput = $true,[bool]$VerboseOutput = $false,[bool]$debug = $false)
 
+#############################################################################################
+# Helper array for check of naming conventions
+#############################################################################################
+$PrefixTable = @()
+$PrefixTable += [PSCustomObject]@{ObjectType = "Pipeline";                 ObjectPrefix = "Pl";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "Dataset";                  ObjectPrefix = "Ds";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "Lookup";                   ObjectPrefix = "Lkp";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "GetMetadata";              ObjectPrefix = "Gm";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "SetVariable";              ObjectPrefix = "Set";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "AppendVariable";           ObjectPrefix = "ApV";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "ForEach";                  ObjectPrefix = "Fe";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "Filter";                   ObjectPrefix = "Flt";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "SqlServerStoredProcedure"; ObjectPrefix = "Sp";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "Copy";                     ObjectPrefix = "Cp";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "ExecuteDataFlow";          ObjectPrefix = "Df";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "AzureDataExplorerCommand"; ObjectPrefix = "Ade";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "AzureFunctionActivity";    ObjectPrefix = "Af";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "Custom";                   ObjectPrefix = "Cst";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "DatabricksNotebook";       ObjectPrefix = "Nb";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "DatabricksSparkJar";       ObjectPrefix = "Jar";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "DatabricksSparkPython";    ObjectPrefix = "Py";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "DataLakeAnalyticsU-SQL";   ObjectPrefix = "Us";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "Delete";                   ObjectPrefix = "Del";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "ExecutePipeline";          ObjectPrefix = "Exp";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "ExecuteSSISPackage";       ObjectPrefix = "Exs";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "Validation";               ObjectPrefix = "Val";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "WebActivity";              ObjectPrefix = "Web";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "WebHook";                  ObjectPrefix = "Whk";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "Wait";                     ObjectPrefix = "Wt";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "HDInsightHive";            ObjectPrefix = "Hv";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "HDInsightMapReduce";       ObjectPrefix = "Mr";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "HDInsightPig";             ObjectPrefix = "Pig";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "HDInsightSpark";           ObjectPrefix = "Spk";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "HDInsightStreaming";       ObjectPrefix = "Str";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "IfCondition";              ObjectPrefix = "If";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "Switch";                   ObjectPrefix = "Sw";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "Until";                    ObjectPrefix = "Unt";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "AzureMLBatchExecution";    ObjectPrefix = "Mlb";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "AzureMLUpdateResource";    ObjectPrefix = "Mlu";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "AzureMLExecutePipeline";   ObjectPrefix = "Mle";}
+$PrefixTable += [PSCustomObject]@{ObjectType = "ExecuteWranglingDataflow"; ObjectPrefix = "Pq";}
 
-#STEP 3:
-#Run it.
+#############################################################################################
+# Helper functions for check of naming conventions
+#############################################################################################
+function CheckPrefix {
+    param (
+        [parameter(Mandatory = $true)] [String] $ObjectName,
+        [parameter(Mandatory = $true)] [String] $ObjectType
+    )
+    $PfxObject = ($PrefixTable | Where-Object -Property ObjectType -eq $ObjectType).ObjectPrefix
+    $PfxLength = $PfxObject.Length
+
+    $Check = ($ObjectName.Substring(0, $PfxLength) -eq $PfxObject)
+    return $Check
+}
+
+function CheckName {
+    param (
+        [parameter(Mandatory = $true)] [String] $ObjectName
+    )
+
+    $Check = ($ObjectName -match '^[a-zA-Z0-9]*$')
+    return $Check
+}
 
 #############################################################################################
 if(-not (Test-Path -Path $ARMTemplateFilePath))
@@ -153,6 +215,7 @@ $SummaryTable += [PSCustomObject]@{
     Severity = $Severity
 }
 $CheckCounter = 0
+
 
 #############################################################################################
 #Check pipeline with an impossible execution chain.
@@ -919,6 +982,137 @@ $SummaryTable += [PSCustomObject]@{
     }
 $CheckCounter = 0
 
+#############################################################################################
+#Check naming conventions for pipelines and activites
+#############################################################################################
+$CheckNumber += 1
+$CheckDetail = "Naming conventions pipelines and activities"
+if($debug) {Write-Host "Running check... " $CheckDetail}
+$Severity = "Info"
+
+ForEach ($Pipeline in $Pipelines)
+{
+    $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
+    $PipelineCheckPrefix = CheckPrefix -ObjectName $PipelineName -ObjectType "Pipeline"
+    $PipelineCheckName = CheckName -ObjectName $PipelineName
+
+    if(! $PipelineCheckPrefix)
+    {
+        $CheckCounter += 1
+        if($VerboseOutput -or ($Severity -eq "High"))
+        {  
+            $VerboseDetailTable += [PSCustomObject]@{
+                Component = "Pipeline";
+                Name = $PipelineName;
+                CheckDetail = "Name does not adhere to naming convention (prefix)";
+                Severity = $Severity
+            }
+        }
+    }
+
+    if(! $PipelineCheckName)
+    {
+        $CheckCounter += 1
+        if($VerboseOutput -or ($Severity -eq "High"))
+        {  
+            $VerboseDetailTable += [PSCustomObject]@{
+                Component = "Pipeline";
+                Name = $PipelineName;
+                CheckDetail = "Name does not adhere to naming convention (characters)";
+                Severity = $Severity
+            }
+        }
+    }
+
+    ForEach ($Activity in $Pipeline.properties.activities) {
+        $ActivityCheckPrefix = CheckPrefix -ObjectName $Activity.Name -ObjectType $Activity.Type
+        $ActivityCheckName = CheckName -ObjectName $Activity.Name
+
+        if(! $ActivityCheckPrefix)
+        {        
+            $CheckCounter += 1
+            if($VerboseOutput -or ($Severity -eq "High"))
+            {            
+                $VerboseDetailTable += [PSCustomObject]@{
+                    Component = "Activity";
+                    Name = "'" + $Activity.Name + "' in " + $PipelineName;
+                    CheckDetail = "Name does not adhere to naming convention (prefix)";
+                    Severity = $Severity
+                }
+            }
+        }
+        if(! $ActivityCheckName)
+        {        
+            $CheckCounter += 1
+            if($VerboseOutput -or ($Severity -eq "High"))
+            {            
+                $VerboseDetailTable += [PSCustomObject]@{
+                    Component = "Activity";
+                    Name = "'" + $Activity.Name + "' in " + $PipelineName;
+                    CheckDetail = "Name does not adhere to naming convention (characters)";
+                    Severity = $Severity
+                }
+            }
+        }
+    }
+}
+$SummaryTable += [PSCustomObject]@{
+        IssueCount = $CheckCounter; 
+        CheckDetail = $CheckDetail;
+        Severity = $Severity
+    }
+$CheckCounter = 0
+
+#############################################################################################
+# Check naming conventions for datasets
+#############################################################################################
+$CheckNumber += 1
+$CheckDetail = "Naming conventions datasets"
+if($debug) {Write-Host "Running check... " $CheckDetail}
+$Severity = "Info"
+ForEach ($Dataset in $Datasets)
+{
+    $DatasetName = (CleanName -RawValue $Dataset.name.ToString())
+
+    $CheckDatasetName = CheckName -ObjectName $DatasetName
+    $CheckDatasetPrefix = CheckPrefix -ObjectName $DatasetName -ObjectType "Dataset"
+
+    if(! $CheckDatasetName)
+    {        
+        $CheckCounter += 1
+        if($VerboseOutput -or ($Severity -eq "High"))
+        {            
+            $VerboseDetailTable += [PSCustomObject]@{
+                Component = "Dataset";
+                Name = $DatasetName;
+                CheckDetail = "Name does not adhere to naming convention (characters)";
+                Severity = $Severity
+            }
+        }
+    }
+
+    if(! $CheckDatasetPrefix)
+    {        
+        $CheckCounter += 1
+        if($VerboseOutput -or ($Severity -eq "High"))
+        {            
+            $VerboseDetailTable += [PSCustomObject]@{
+                Component = "Dataset";
+                Name = $DatasetName;
+                CheckDetail = "Name does not adhere to naming convention (prefix)";
+                Severity = $Severity
+            }
+        }
+    }
+}
+$SummaryTable += [PSCustomObject]@{
+        IssueCount = $CheckCounter; 
+        CheckDetail = $CheckDetail;
+        Severity = $Severity
+    }
+$CheckCounter = 0
+
+
 
 #############################################################################################
 Write-Host ""
@@ -979,4 +1173,3 @@ if(($VerboseDetailTable.Severity -contains "High") -or ($VerboseDetailTable.Seve
 } else {
     Write-Host "##vso[task.complete result=Succeeded;]DONE"
 }
-
