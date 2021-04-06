@@ -199,7 +199,6 @@ $RedundantResources = $ResourcesList | Where-Object {$DependantsList -notcontain
 $CheckDetail = "Pipeline(s) without any triggers attached. Directly or indirectly."
 $Severity = ($checkDetails | Where-Object { $_.checkName -eq "pipeline_without_triggers"} | Select-Object ).severity
 if($Severity -ne "ignore") {
-    exit
 	$CheckNumber += 1
     ForEach($RedundantResource in $RedundantResources | Where-Object {$_ -like "pipelines*"})
     {
