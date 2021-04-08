@@ -74,5 +74,5 @@
         {"objectName": "AzureMLExecutePipeline", "prefix": "MLE"},
         {"objectName": "ExecuteWranglingDataflow", "prefix": "PQ"}
     ],
-    "charsNamingConvention":"a-zA-Z0-9"
+    "charsNamingConvention":"a-zA-Z0-9_"
 }
