@@ -73,5 +73,6 @@
         {"objectName": "AzureMLUpdateResource", "prefix": "MLU"},
         {"objectName": "AzureMLExecutePipeline", "prefix": "MLE"},
         {"objectName": "ExecuteWranglingDataflow", "prefix": "PQ"}
-    ]
+    ],
+    "charsNamingConvention":"a-zA-Z0-9_"
 }

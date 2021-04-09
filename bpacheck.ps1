@@ -13,7 +13,11 @@ $config = Get-Content -Raw -Path $configFilePath | ConvertFrom-Json
 $severities = $config.severity
 $checkDetails = $config.checkDetails
 $namingConvention = $config.namingConvention
+$charsNamingConvention = $config.charsNamingConvention
 $importance = ($severities | Sort-Object -Property value -Descending).name
+
+$validRegex = '^[' + $charsNamingConvention + ']*$'
+$negativeRegex = '[^' + $charsNamingConvention + ']'
 
 #############################################################################################
 # Helper functions for check of naming conventions
@@ -35,9 +39,9 @@ function CheckName {
         [parameter(Mandatory = $true)] [String] $ObjectName
     )
 
-    $Check = ($ObjectName -match '^[a-zA-Z0-9_]*$')
+    $Check = ($ObjectName -match $validregex)
     if(!$Check) {
-        $offendingCharacters = (Select-String [^a-zA-Z0-9_] -input $ObjectName -AllMatches | ForEach-Object {$_.matches.value} | Sort-Object | Get-Unique | Join-String -DoubleQuote -Separator ', ')
+        $offendingCharacters = (Select-String $negativeRegex -input $ObjectName -AllMatches | ForEach-Object {$_.matches.value} | Sort-Object | Get-Unique | Join-String -DoubleQuote -Separator ', ')
     }
     return [PSCustomObject]@{passed=$Check;offendingCharacters=$offendingCharacters}
 }
