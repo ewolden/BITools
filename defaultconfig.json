@@ -33,7 +33,8 @@
         {"checkName": "lookup_sql_timeout", "severity": "high"},
         {"checkName": "naming_convention_pipeline", "severity": "high"},
         {"checkName": "naming_convention_activity", "severity": "high"},
-        {"checkName": "naming_convention_dataset", "severity": "high"}
+        {"checkName": "naming_convention_dataset", "severity": "high"},
+        {"checkName": "naming_convention_sqlscripts", "severity": "high"}
     ],
     "namingConvention": [
         {"objectName": "Pipeline", "prefix": "PL"},
@@ -72,7 +73,9 @@
         {"objectName": "AzureMLBatchExecution", "prefix": "MLB"},
         {"objectName": "AzureMLUpdateResource", "prefix": "MLU"},
         {"objectName": "AzureMLExecutePipeline", "prefix": "MLE"},
-        {"objectName": "ExecuteWranglingDataflow", "prefix": "PQ"}
+        {"objectName": "ExecuteWranglingDataflow", "prefix": "PQ"},
+        {"objectName": "LinkedService", "prefix": "LS"},
+        {"objectName": "SqlQuery", "prefix": "SQL"}
     ],
     "charsNamingConvention":"a-zA-Z0-9_"
 }
