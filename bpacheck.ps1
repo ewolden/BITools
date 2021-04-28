@@ -172,7 +172,7 @@ while ($newActivities.Count -ge 1) {
     $newActivities = FindSubActivities($Activities)
     $Activities += $newActivities
 }
-$resources += $Activities
+#$resources += $Activities
 
 #Output variables
 $CheckNumber = 0
