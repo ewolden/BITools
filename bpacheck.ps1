@@ -1,5 +1,3 @@
-#Todo, change all activities to use $Activities to get nested values
-
 ##Retrieve all arguments
 [CmdletBinding()]
 param(
