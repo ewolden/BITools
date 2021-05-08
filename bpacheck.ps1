@@ -1,8 +1,12 @@
 ##Retrieve all arguments
 [CmdletBinding()]
 param(
-    [parameter(Mandatory = $true, HelpMessage='ARMTemplate file filepath!')] [String] $ARMTemplateFilePath,
+    [parameter(Mandatory = $true, HelpMessage='ADF/Synapse file(s) path!')] [String] $inputpath,
     [parameter(Mandatory = $false, HelpMessage='Config file filepath!')] [String] $configFilePath = "")#,[bool]$SummaryOutput = $true,[bool]$VerboseOutput = $false,[bool]$debug = $false)
+
+if ((Get-Item $inputpath) -is [System.IO.DirectoryInfo]) {
+    $isFolder = $true
+}
 
 if ($configFilePath -eq "") {
     $configFilePath = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
@@ -45,70 +49,99 @@ function CheckName {
     }
     return [PSCustomObject]@{passed=$Check;offendingCharacters=$offendingCharacters}
 }
+
 #############################################################################################
-# Helper functions for adding to tables
+# Helper functions for identifying all activities
 #############################################################################################
-function AddToLogObject {
+
+function FindSubActivities {
     param (
-        [parameter(Mandatory = $true)] [PSCustomObject] $Object,
-        [parameter(Mandatory = $true)] [String] $Component,
-        [parameter(Mandatory = $true)] [String] $Name,
-        [parameter(Mandatory = $true)] [String] $CheckDetail,
-        [parameter(Mandatory = $true)] [String] $Severity
-        
+        [parameter(Mandatory = $true)] [PSCustomObject] $Activities
     )
-    $Object += [PSCustomObject]@{
-        Component = $Component;
-        Name = $Name;
-        CheckDetail = $CheckDetail;
-        Severity = $Severity
+    $newActivities = @()
+    ForEach($Activity in $Activities){
+        if(($Activity.type -eq "Until") -or $Activity.type -eq "ForEach"){
+            ForEach($SubActivity in $Activity.typeProperties.activities) {
+                if(-not ($Activities -contains $SubActivity)){
+                    $newActivities += $SubActivity
+                }
+            }
+        } elseif ($Activity.type -eq "IfCondition") {
+            ForEach($SubActivity in $Activity.typeProperties.ifFalseActivities) {
+                if(-not ($Activities -contains $SubActivity)){
+                    $newActivities += $SubActivity
+                }
+            }
+            ForEach($SubActivity in $Activity.typeProperties.ifTrueActivities) {
+                if(-not ($Activities -contains $SubActivity)){
+                    $newActivities += $SubActivity
+                }
+            }
+        } elseif ($Activity.type -eq "Switch") {
+            ForEach($Case in $Activity.typeProperties.cases) {
+                ForEach($SubActivity in $Case.activities) {
+                    if(-not ($Activities -contains $SubActivity)){
+                        $newActivities += $SubActivity
+                    }
+                }
+            }
+        }
     }
+    return $newActivities
 }
 
-
-function AddToSummaryLogObject {
-    param (
-        [parameter(Mandatory = $true)] [PSCustomObject] $Object,
-        [parameter(Mandatory = $true)] [String] $IssueCount,
-        [parameter(Mandatory = $true)] [String] $CheckDetail,
-        [parameter(Mandatory = $true)] [String] $Severity
-        
-    )
-    $Object += [PSCustomObject]@{
-        Component = $Component;
-        IssueCount = $IssueCount;
-        CheckDetail = $CheckDetail;
-        Severity = $Severity
-    }
-}
 #############################################################################################
-if(-not (Test-Path -Path $ARMTemplateFilePath))
+if(-not (Test-Path -Path $inputpath))
 {
-    Write-Host "##vso[task.LogIssue type=error;]ARM template file not found. Please check the path provided."
+    Write-Host "##vso[task.LogIssue type=error;]File/folder not found. Please check the path provided."
     exit 1
 }
 
-$Hr = "-------------------------------------------------------------------------------------------------------------------"
-Write-Host ""
-Write-Host $Hr
-Write-Host "Running checks for Data Factory ARM template:"
-Write-Host ""
-$ARMTemplateFilePath
-Write-Host ""
+if ($isFolder) {
+    #Parse folder into resource parts
+    $LinkedServices = Get-ChildItem -Recurse "$($inputpath)\linkedService" | ForEach-Object { Get-Content $_ | ConvertFrom-Json }
+    $Datasets = Get-ChildItem -Recurse "$($inputpath)\dataset" | ForEach-Object { Get-Content $_ | ConvertFrom-Json }
+    $Pipelines = Get-ChildItem -Recurse "$($inputpath)\pipeline" | ForEach-Object { Get-Content $_ | ConvertFrom-Json }
+    $DataFlows = Get-ChildItem -Recurse "$($inputpath)\dataflow" | ForEach-Object { Get-Content $_ | ConvertFrom-Json }
+    $Triggers = Get-ChildItem -Recurse "$($inputpath)\trigger" | ForEach-Object { Get-Content $_ | ConvertFrom-Json }
+    $SQLScripts = Get-ChildItem -Recurse "$($inputpath)\sqlscript" | ForEach-Object { Get-Content $_ | ConvertFrom-Json }
 
-#Parse template into ADF resource parts
-$ADF = Get-Content $ARMTemplateFilePath | ConvertFrom-Json
-$LinkedServices = $ADF.resources | Where-Object {$_.type -eq "Microsoft.DataFactory/factories/linkedServices"}
-$Datasets = $ADF.resources | Where-Object {$_.type -eq "Microsoft.DataFactory/factories/datasets"}
-$Pipelines = $ADF.resources | Where-Object {$_.type -eq "Microsoft.DataFactory/factories/pipelines"}
-#$Activities = $Pipelines.properties.activities #regardless of pipeline
-$DataFlows = $ADF.resources | Where-Object {$_.type -eq "Microsoft.DataFactory/factories/dataflows"}
-$Triggers = $ADF.resources | Where-Object {$_.type -eq "Microsoft.DataFactory/factories/triggers"}
+    $resources = @($LinkedServices; $Datasets; $Pipelines; $DataFlows; $Triggers; $SQLScripts)
+} else {
+    #Parse template into resource parts
+    #Split into synapse and ADF methods:
+    $template = Get-Content $inputpath | ConvertFrom-Json
+    $resources = $template.resources
+    if ($template.variables -match "Microsoft.DataFactory/factories/") { #This is a data factory template 
+        $LinkedServices = $resources | Where-Object {$_.type -eq "Microsoft.DataFactory/factories/linkedServices"}
+        $Datasets = $resources | Where-Object {$_.type -eq "Microsoft.DataFactory/factories/datasets"}
+        $Pipelines = $resources | Where-Object {$_.type -eq "Microsoft.DataFactory/factories/pipelines"}
+        $DataFlows = $resources | Where-Object {$_.type -eq "Microsoft.DataFactory/factories/dataflows"}
+        $Triggers = $resources | Where-Object {$_.type -eq "Microsoft.DataFactory/factories/triggers"}
+    } elseif ($template.variables -match "Microsoft.Synapse/workspaces/") { #This is a synapse template
+        $LinkedServices = $resources | Where-Object {$_.type -eq "Microsoft.Synapse/workspaces/linkedServices"}
+        $Datasets = $resources | Where-Object {$_.type -eq "Microsoft.Synapse/workspaces/datasets"}
+        $Pipelines = $resources | Where-Object {$_.type -eq "Microsoft.Synapse/workspaces/pipelines"}
+        $DataFlows = $resources | Where-Object {$_.type -eq "Microsoft.Synapse/workspaces/dataflows"}
+        $Triggers = $resources | Where-Object {$_.type -eq "Microsoft.Synapse/workspaces/triggers"}
+    }
+    
+}
+
+#Set Activities
+$Activities = $Pipelines.properties.activities
+$newActivities = FindSubActivities($Activities)
+$Activities += $newActivities
+while ($newActivities.Count -ge 1) {
+    $newActivities = FindSubActivities($Activities)
+    $Activities += $newActivities
+}
+#$resources += $Activities
 
 #Output variables
 $CheckNumber = 0
 $CheckDetail = ""
-$Severity = "" #Info, Low, Medium, High
+$Severity = ""
 $CheckCounter = 0
 $SummaryTable = @()
 $VerboseDetailTable = @()
@@ -118,7 +151,12 @@ function CleanName {
     param (
         [parameter(Mandatory = $true)] [String] $RawValue
     )
-    $CleanName = $RawValue.substring($RawValue.IndexOf("/")+1, $RawValue.LastIndexOf("'") - $RawValue.IndexOf("/")-1)
+    if($isFolder) {
+        $CleanName = $RawValue
+    } else {
+        $CleanName = $RawValue.substring($RawValue.IndexOf("/")+1, $RawValue.LastIndexOf("'") - $RawValue.IndexOf("/")-1)
+    }
+    
     return $CleanName
 }
 
@@ -135,61 +173,178 @@ function CleanType {
 #############################################################################################
 $ResourcesList = New-Object System.Collections.ArrayList($null)
 $DependantsList = New-Object System.Collections.ArrayList($null)
-
 #Get resources
-ForEach($Resource in $ADF.resources)
-{
-    $ResourceName = CleanName -RawValue $Resource.name
-    $ResourceType = CleanType -RawValue $Resource.type
-    $CompleteResource =   $ResourceType + "|" + $ResourceName
-    
-    if(-not ($ResourcesList -contains $CompleteResource))
-    {
-        [void]$ResourcesList.Add($CompleteResource)
-    }
-}
-
-#Get dependants
-ForEach($Resource in $ADF.resources)# | Where-Object {$_.type -ne "Microsoft.DataFactory/factories/triggers"})
-{
-    if($Resource.dependsOn.Count -eq 1)
-    {
-        $DependantName = CleanName -RawValue $Resource.dependsOn[0].ToString()
-        $CompleteDependant = $DependantName.Replace('/','|')
-
-        if(-not ($DependantsList -contains $CompleteDependant))
-        {
-            [void]$DependantsList.Add($CompleteDependant)
+if($isFolder) {
+    ForEach($Dataset in $Datasets) {
+        $CompleteResource =  "datasets" + "|" + $Dataset.name
+        if(-not ($ResourcesList -contains $CompleteResource)) {
+            [void]$ResourcesList.Add($CompleteResource)
         }
     }
-    else
+    ForEach($Pipeline in $Pipelines) {
+        $CompleteResource =  "pipelines" + "|" + $Pipeline.name
+        if(-not ($ResourcesList -contains $CompleteResource)) {
+            [void]$ResourcesList.Add($CompleteResource)
+        }
+    }
+    ForEach($DataFlow in $DataFlows) {
+        $CompleteResource =  "dataflows" + "|" + $DataFlow.name
+        if(-not ($ResourcesList -contains $CompleteResource)) {
+            [void]$ResourcesList.Add($CompleteResource)
+        }
+    }
+    ForEach($Trigger in $Triggers) {
+        $CompleteResource =  "triggers" + "|" + $Trigger.name
+        if(-not ($ResourcesList -contains $CompleteResource)) {
+            [void]$ResourcesList.Add($CompleteResource)
+        }
+    }
+} else {
+    ForEach($Resource in $resources) {
+        $ResourceName = CleanName -RawValue $Resource.name
+        $ResourceType = CleanType -RawValue $Resource.type
+        
+        $CompleteResource =  $ResourceType + "|" + $ResourceName
+        
+        if(-not ($ResourcesList -contains $CompleteResource)) {
+            [void]$ResourcesList.Add($CompleteResource)
+        }
+    }
+}
+#Get dependants
+if($isFolder) {
+    #for pipeline check all activities
+    ForEach($Activity in $Activities) {
+        if($Activity.type -eq "Copy") {
+            ForEach($input in $Activity.inputs) {
+                $DependantName = "datasets" + "|" + $input.referenceName
+                if(-not ($DependantsList -contains $DependantName)) {
+                    [void]$DependantsList.Add($DependantName)
+                }
+            }
+            ForEach($output in $Activity.outputs) {
+                $DependantName = "datasets" + "|" + $input.referenceName
+                if(-not ($DependantsList -contains $DependantName)) {
+                    [void]$DependantsList.Add($DependantName)
+                }
+            }
+        } elseif (($Activity.type -eq "Lookup") -Or ($Activity.type -eq "Delete") -Or ($Activity.type -eq "GetMetadata") -Or ($Activity.type -eq "Validation")) {
+            $DependantName = "datasets" + "|" + $Activity.typeProperties.dataset.referenceName
+            if(-not ($DependantsList -contains $DependantName)) {
+                [void]$DependantsList.Add($DependantName)
+            }
+        } elseif ($Activity.type -eq "SynapseNotebook") {
+            $DependantName = "notebooks" + "|" + $Activity.typeProperties.notebook.referenceName
+            if(-not ($DependantsList -contains $DependantName)) {
+                [void]$DependantsList.Add($DependantName)
+            }
+        } elseif ($Activity.type -eq "SparkJob") {
+            $DependantName = "SparkJobs" + "|" + $Activity.typeProperties.sparkJob.referenceName
+            if(-not ($DependantsList -contains $DependantName)) {
+                [void]$DependantsList.Add($DependantName)
+            }
+        } elseif ($Activity.type -eq "ExecuteDataFlow") {
+            $DependantName = "dataflows" + "|" + $Activity.typeProperties.dataflow.referenceName
+            if(-not ($DependantsList -contains $DependantName)) {
+                [void]$DependantsList.Add($DependantName)
+            }
+        } elseif ($Activity.type -eq "ExecutePipeline") {
+            $DependantName = "pipelines" + "|" + $Activity.typeProperties.pipeline.referenceName
+            if(-not ($DependantsList -contains $DependantName)) {
+                [void]$DependantsList.Add($DependantName)
+            }
+        } elseif ($Activity.type -in @("Until", "WebActivity", "Switch", "ForEach", "SetVariable", "IfCondition", "WebHook", "AppendVariable", "Wait", "Filter")) {
+            #Do nothing
+        } else {#should cover rest
+            $DependantName = "linkedServices" + "|" + $Activity.linkedServiceName.referenceName
+            if(-not ($DependantsList -contains $DependantName)) {
+                [void]$DependantsList.Add($DependantName)
+            }
+        }
+    }
+
+    #for datasets check all linked services
+    ForEach($Dataset in $Datasets) {
+        $DependantName = "linkedServices" + "|" + $Dataset.properties.linkedServiceName.referenceName
+        if(-not ($DependantsList -contains $DependantName)) {
+            [void]$DependantsList.Add($DependantName)
+        }
+    }
+
+    #For triggers check all pipelines
+    ForEach($Trigger in $Triggers) {
+        ForEach($Pipeline in $Dataset.properties.pipelines) {
+            $DependantName = "pipelines" + "|" + $Pipeline.pipelineReference.referenceName
+            if(-not ($DependantsList -contains $DependantName)) {
+                [void]$DependantsList.Add($DependantName)
+            }
+        }
+    }
+
+    #For dataflows check datasets
+    ForEach($Dataflow in $DataFlows) {
+        ForEach($Dataset in $Dataflow.typeProperties.properties.sources) {
+            $DependantName = "datasets" + "|" + $Dataset.dataset.referenceName
+            if(-not ($DependantsList -contains $DependantName)) {
+                [void]$DependantsList.Add($DependantName)
+            }
+        }
+        ForEach($Dataset in $Dataflow.typeProperties.properties.sinks) {
+            $DependantName = "datasets" + "|" + $Dataset.dataset.referenceName
+            if(-not ($DependantsList -contains $DependantName)) {
+                [void]$DependantsList.Add($DependantName)
+            }
+        }
+    }
+} else {
+    ForEach($Resource in $resources)# | Where-Object {$_.type -ne "Microsoft.DataFactory/factories/triggers"})
     {
-        ForEach($Dependant in $Resource.dependsOn)
+        if($Resource.dependsOn.Count -eq 1)
         {
-            $DependantName = CleanName -RawValue $Dependant
+            $DependantName = CleanName -RawValue $Resource.dependsOn[0].ToString()
             $CompleteDependant = $DependantName.Replace('/','|')
 
             if(-not ($DependantsList -contains $CompleteDependant))
             {
                 [void]$DependantsList.Add($CompleteDependant)
             }
+        } else {
+            ForEach($Dependant in $Resource.dependsOn)
+            {
+                $DependantName = CleanName -RawValue $Dependant
+                $CompleteDependant = $DependantName.Replace('/','|')
+
+                if(-not ($DependantsList -contains $CompleteDependant))
+                {
+                    [void]$DependantsList.Add($CompleteDependant)
+                }
+            }
         }
     }
 }
 
 #Get trigger dependants
-ForEach($Resource in $Triggers)
-{
-    
-    $ResourceName = CleanName -RawValue $Resource.name
-    $ResourceType = CleanType -RawValue $Resource.type
-    $CompleteResource =   $ResourceType + "|" + $ResourceName
-
-    if($Resource.dependsOn.count -ge 1)
+if($isFolder) {
+    ForEach($Trigger in $Triggers){
+        if($Trigger.properties.pipelines.Count -ge 1) {
+            $CompleteResource = "triggers" + "|" + $Trigger.name
+            if(-not ($DependantsList -contains $CompleteResource)) {
+                [void]$DependantsList.Add($CompleteResource)
+            }
+        }
+    }
+} else {
+    ForEach($Resource in $Triggers)
     {
-        if(-not ($DependantsList -contains $CompleteResource))
+        $ResourceName = CleanName -RawValue $Resource.name
+        $ResourceType = CleanType -RawValue $Resource.type
+        $CompleteResource = $ResourceType + "|" + $ResourceName
+
+        if($Resource.dependsOn.count -ge 1)
         {
-            [void]$DependantsList.Add($CompleteResource)
+            if(-not ($DependantsList -contains $CompleteResource)) {
+                [void]$DependantsList.Add($CompleteResource)
+            }
         }
     }
 }
@@ -232,62 +387,58 @@ $CheckDetail = "Pipeline(s) with an impossible AND/OR activity execution chain."
 $Severity = ($checkDetails | Where-Object { $_.checkName -eq "pipeline_impossible_execution_chain"} | Select-Object ).severity
 if($Severity -ne "ignore") {
 	$CheckNumber += 1
-    ForEach($Pipeline in $Pipelines)
+    $ActivityFailureDependencies = New-Object System.Collections.ArrayList($null)
+    $ActivitySuccessDependencies = New-Object System.Collections.ArrayList($null)
+
+    #get upstream failure dependants
+    ForEach($Activity in $Activities)
     {
-        $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
-        $ActivityFailureDependencies = New-Object System.Collections.ArrayList($null)
-        $ActivitySuccessDependencies = New-Object System.Collections.ArrayList($null)
-
-        #get upstream failure dependants
-        ForEach($Activity in $Pipeline.properties.activities)
+        if($Activity.dependsOn.Count -gt 1)
         {
-            if($Activity.dependsOn.Count -gt 1)
+            ForEach($UpStreamActivity in $Activity.dependsOn)
             {
-                ForEach($UpStreamActivity in $Activity.dependsOn)
-                {
-                    if(($UpStreamActivity.dependencyConditions.Contains('Failed')) -or ($UpStreamActivity.dependencyConditions.Contains('Skipped')))
-                    {  
-                        if(-not ($ActivityFailureDependencies -contains $UpStreamActivity.activity))
-                        {
-                            [void]$ActivityFailureDependencies.Add($UpStreamActivity.activity)
-                        }
-                    }
-                }
-            }
-        }
-
-        #get downstream success dependants
-        ForEach($ActivityDependant in $ActivityFailureDependencies)
-        {
-            ForEach($Activity in $Pipeline.properties.activities | Where-Object {$_.name -eq $ActivityDependant})
-            {
-                if($Activity.dependsOn.Count -ge 1)
-                {
-                    ForEach($DownStreamActivity in $Activity.dependsOn)
+                if(($UpStreamActivity.dependencyConditions.Contains('Failed')) -or ($UpStreamActivity.dependencyConditions.Contains('Skipped')))
+                {  
+                    if(-not ($ActivityFailureDependencies -contains $UpStreamActivity.activity))
                     {
-                        if($DownStreamActivity.dependencyConditions.Contains('Succeeded'))
-                        {                  
-                            if(-not ($ActivitySuccessDependencies -contains $DownStreamActivity.activity))
-                            {
-                                [void]$ActivitySuccessDependencies.Add($DownStreamActivity.activity)
-                            }
+                        [void]$ActivityFailureDependencies.Add($UpStreamActivity.activity)
+                    }
+                }
+            }
+        }
+    }
+
+    #get downstream success dependants
+    ForEach($ActivityDependant in $ActivityFailureDependencies)
+    {
+        ForEach($Activity in $Activities | Where-Object {$_.name -eq $ActivityDependant})
+        {
+            if($Activity.dependsOn.Count -ge 1)
+            {
+                ForEach($DownStreamActivity in $Activity.dependsOn)
+                {
+                    if($DownStreamActivity.dependencyConditions.Contains('Succeeded'))
+                    {                  
+                        if(-not ($ActivitySuccessDependencies -contains $DownStreamActivity.activity))
+                        {
+                            [void]$ActivitySuccessDependencies.Add($DownStreamActivity.activity)
                         }
                     }
                 }
             }
         }
-        
-        #compare dependants - do they exist in both lists?
-        $Problems = $ActivityFailureDependencies | Where-Object {$ActivitySuccessDependencies -contains $_}
-        if($Problems.Count -gt 0)
-        {
-            $CheckCounter += 1
-            $VerboseDetailTable += [PSCustomObject]@{
-                Component = "Pipeline";
-                Name = $PipelineName;
-                CheckDetail = "Has an impossible AND/OR activity execution chain.";
-                Severity = $Severity
-            }
+    }
+    
+    #compare dependants - do they exist in both lists?
+    $Problems = $ActivityFailureDependencies | Where-Object {$ActivitySuccessDependencies -contains $_}
+    if($Problems.Count -gt 0)
+    {
+        $CheckCounter += 1
+        $VerboseDetailTable += [PSCustomObject]@{
+            Component = "Pipeline";
+            Name = $PipelineName;
+            CheckDetail = "Has an impossible AND/OR activity execution chain.";
+            Severity = $Severity
         }
     }
     $SummaryTable += [PSCustomObject]@{
@@ -427,21 +578,18 @@ $CheckDetail = "Activitie(s) with timeout values still set to the service defaul
 $Severity = ($checkDetails | Where-Object { $_.checkName -eq "activity_timeout_value"} | Select-Object ).severity
 if($Severity -ne "ignore") {
 	$CheckNumber += 1
-    ForEach ($Pipeline in $Pipelines){
-        $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
-        ForEach ($Activity in $Pipeline.properties.activities) {
-            $timeout = $Activity.policy.timeout
-            if(-not ([string]::IsNullOrEmpty($timeout)))
-            {        
-                if($timeout -eq "7.00:00:00")
-                {
-                    $CheckCounter += 1           
-                    $VerboseDetailTable += [PSCustomObject]@{
-                        Component = "Activity";
-                        Name = $Activity.Name + " in " + $PipelineName;
-                        CheckDetail = "Timeout policy still set to the service default value of 7 days.";
-                        Severity = $Severity
-                    }
+    ForEach ($Activity in $Activities) {
+        $timeout = $Activity.policy.timeout
+        if(-not ([string]::IsNullOrEmpty($timeout)))
+        {        
+            if($timeout -eq "7.00:00:00")
+            {
+                $CheckCounter += 1           
+                $VerboseDetailTable += [PSCustomObject]@{
+                    Component = "Activity";
+                    Name = $Activity.Name;
+                    CheckDetail = "Timeout policy still set to the service default value of 7 days.";
+                    Severity = $Severity
                 }
             }
         }
@@ -462,20 +610,17 @@ $CheckDetail = "Activitie(s) without a description value."
 $Severity = ($checkDetails | Where-Object { $_.checkName -eq "activity_description"} | Select-Object ).severity
 if($Severity -ne "ignore") {
 	$CheckNumber += 1
-    ForEach ($Pipeline in $Pipelines){
-        $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
-        ForEach ($Activity in $Pipeline.properties.activities) 
-        {
-            $ActivityDescription = $Activity.description
-            if(([string]::IsNullOrEmpty($ActivityDescription)))
-            {        
-                $CheckCounter += 1         
-                $VerboseDetailTable += [PSCustomObject]@{
-                    Component = "Activity";
-                    Name = $Activity.Name + " in " + $PipelineName;;
-                    CheckDetail = "Does not have a description.";
-                    Severity = $Severity
-                }
+    ForEach ($Activity in $Activities) 
+    {
+        $ActivityDescription = $Activity.description
+        if(([string]::IsNullOrEmpty($ActivityDescription)))
+        {        
+            $CheckCounter += 1         
+            $VerboseDetailTable += [PSCustomObject]@{
+                Component = "Activity";
+                Name = $Activity.Name;
+                CheckDetail = "Does not have a description.";
+                Severity = $Severity
             }
         }
     }
@@ -494,28 +639,25 @@ $CheckDetail = "Activitie(s) ForEach iteration without a batch count value set."
 $Severity = ($checkDetails | Where-Object { $_.checkName -eq "activity_batch_size_unset"} | Select-Object ).severity
 if($Severity -ne "ignore") {
 	$CheckNumber += 1
-    ForEach ($Pipeline in $Pipelines){
-        $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
-        ForEach ($Activity in $Pipeline.properties.activities | Where-Object {$_.type -eq "ForEach"})
-        {   
-            [bool]$isSequential = $false #attribute may only exist if changed, assume not present in arm template
-            if((-not [string]::IsNullOrEmpty($Activity.typeProperties.isSequential)))
-            {
-                $isSequential = $Activity.typeProperties.isSequential
-            }
-            $BatchCount = $Activity.typeProperties.batchCount
+    ForEach ($Activity in $Activities | Where-Object {$_.type -eq "ForEach"})
+    {   
+        [bool]$isSequential = $false #attribute may only exist if changed, assume not present in arm template
+        if((-not [string]::IsNullOrEmpty($Activity.typeProperties.isSequential)))
+        {
+            $isSequential = $Activity.typeProperties.isSequential
+        }
+        $BatchCount = $Activity.typeProperties.batchCount
 
-            if(!$isSequential)
-            {
-                if(([string]::IsNullOrEmpty($BatchCount)))
-                {        
-                    $CheckCounter += 1
-                    $VerboseDetailTable += [PSCustomObject]@{
-                        Component = "Activity";
-                        Name = $Activity.Name + " in " + $PipelineName;
-                        CheckDetail = "ForEach does not have a batch count value set.";
-                        Severity = $Severity
-                    }
+        if(!$isSequential)
+        {
+            if(([string]::IsNullOrEmpty($BatchCount)))
+            {        
+                $CheckCounter += 1
+                $VerboseDetailTable += [PSCustomObject]@{
+                    Component = "Activity";
+                    Name = $Activity.Name;
+                    CheckDetail = "ForEach does not have a batch count value set, should be set to service maximum (50).";
+                    Severity = $Severity
                 }
             }
         }
@@ -536,28 +678,25 @@ $CheckDetail = "Activitie(s) ForEach iteration with a batch count size that is l
 $Severity = ($checkDetails | Where-Object { $_.checkName -eq "activity_batch_size_less_than_max"} | Select-Object ).severity
 if($Severity -ne "ignore") {
 	$CheckNumber += 1
-    ForEach ($Pipeline in $Pipelines){
-        $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
-        ForEach ($Activity in $Pipeline.properties.activities | Where-Object {$_.type -eq "ForEach"})
-        {     
-            [bool]$isSequential = $false #attribute may only exist if changed, assume not present in arm template
-            if((-not [string]::IsNullOrEmpty($Activity.typeProperties.isSequential)))
-            {
-                $isSequential = $Activity.typeProperties.isSequential
-            }
-            $BatchCount = $Activity.typeProperties.batchCount
+    ForEach ($Activity in $Activities | Where-Object {$_.type -eq "ForEach"})
+    {     
+        [bool]$isSequential = $false #attribute may only exist if changed, assume not present in arm template
+        if((-not [string]::IsNullOrEmpty($Activity.typeProperties.isSequential)))
+        {
+            $isSequential = $Activity.typeProperties.isSequential
+        }
+        $BatchCount = $Activity.typeProperties.batchCount
 
-            if(!$isSequential)
-            {
-                if($BatchCount -lt 50)
-                {        
-                    $CheckCounter += 1
-                    $VerboseDetailTable += [PSCustomObject]@{
-                        Component = "Activity";
-                        Name = $Activity.Name + " in " + $PipelineName;;
-                        CheckDetail = "ForEach has a batch size that is less than the service maximum.";
-                        Severity = $Severity
-                    }
+        if(!$isSequential)
+        {
+            if($BatchCount -lt 50)
+            {        
+                $CheckCounter += 1
+                $VerboseDetailTable += [PSCustomObject]@{
+                    Component = "Activity";
+                    Name = $Activity.Name;
+                    CheckDetail = "ForEach has a batch size that is less than the service maximum (50).";
+                    Severity = $Severity
                 }
             }
         }
@@ -923,19 +1062,16 @@ $CheckDetail = "Activitie(s) SQL lookup timeout set to default"
 $Severity = ($checkDetails | Where-Object { $_.checkName -eq "lookup_sql_timeout"} | Select-Object ).severity
 if($Severity -ne "ignore") {
 	$CheckNumber += 1    
-    ForEach ($Pipeline in $Pipelines){
-        $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
-        ForEach ($Activity in $Pipeline.properties.activities | Where-Object {$_.type -eq "Lookup"})
-        {     
-            if(($Activity.typeProperties.source.type -eq 'AzureSqlSource')) {
-                if($Activity.typeProperties.source.queryTimeout -eq '02:00:00') {
-                    $CheckCounter += 1
-                    $VerboseDetailTable += [PSCustomObject]@{
-                        Component = "Activity";
-                        Name = $Activity.Name + " in " + $PipelineName;;
-                        CheckDetail = "SQL query timeout is set to default value";
-                        Severity = $Severity
-                    }
+    ForEach ($Activity in $Activities | Where-Object {$_.type -eq "Lookup"})
+    {     
+        if(($Activity.typeProperties.source.type -eq 'AzureSqlSource')) {
+            if($Activity.typeProperties.source.queryTimeout -eq '02:00:00') {
+                $CheckCounter += 1
+                $VerboseDetailTable += [PSCustomObject]@{
+                    Component = "Activity";
+                    Name = $Activity.Name;
+                    CheckDetail = "SQL query timeout is set to default value";
+                    Severity = $Severity
                 }
             }
         }
@@ -998,33 +1134,28 @@ $CheckDetail = "Naming conventions activities"
 $Severity = ($checkDetails | Where-Object { $_.checkName -eq "naming_convention_activity"} | Select-Object ).severity
 if($Severity -ne "ignore") {
 	$CheckNumber += 1
-    ForEach ($Pipeline in $Pipelines)
-    {
-        $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
+    ForEach ($Activity in $Activities) {
+        $ActivityCheckPrefix = CheckPrefix -ObjectName $Activity.Name -ObjectType $Activity.Type
+        $ActivityCheckName = CheckName -ObjectName $Activity.Name
 
-        ForEach ($Activity in $Pipeline.properties.activities) {
-            $ActivityCheckPrefix = CheckPrefix -ObjectName $Activity.Name -ObjectType $Activity.Type
-            $ActivityCheckName = CheckName -ObjectName $Activity.Name
-
-            if(! $ActivityCheckPrefix.passed)
-            {        
-                $CheckCounter += 1
-                $VerboseDetailTable += [PSCustomObject]@{
-                    Component = "Activity";
-                    Name = "'" + $Activity.Name + "' in " + $PipelineName;
-                    CheckDetail = "Name does not adhere to naming convention (prefix), should start with $($ActivityCheckPrefix.prefix)";
-                    Severity = $Severity
-                }
+        if(! $ActivityCheckPrefix.passed)
+        {        
+            $CheckCounter += 1
+            $VerboseDetailTable += [PSCustomObject]@{
+                Component = "Activity";
+                Name = $Activity.Name;
+                CheckDetail = "Name does not adhere to naming convention (prefix), should start with $($ActivityCheckPrefix.prefix)";
+                Severity = $Severity
             }
-            if(! $ActivityCheckName.passed)
-            {        
-                $CheckCounter += 1
-                $VerboseDetailTable += [PSCustomObject]@{
-                    Component = "Activity";
-                    Name = "'" + $Activity.Name + "' in " + $PipelineName;
-                    CheckDetail = "Name does not adhere to naming convention (characters), offending characters: $($ActivityCheckName.offendingCharacters)";
-                    Severity = $Severity
-                }
+        }
+        if(! $ActivityCheckName.passed)
+        {        
+            $CheckCounter += 1
+            $VerboseDetailTable += [PSCustomObject]@{
+                Component = "Activity";
+                Name = $Activity.Name;
+                CheckDetail = "Name does not adhere to naming convention (characters), offending characters: $($ActivityCheckName.offendingCharacters)";
+                Severity = $Severity
             }
         }
     }
@@ -1079,7 +1210,48 @@ if($Severity -ne "ignore") {
         }
     $CheckCounter = 0
 }
+#############################################################################################
+# Check naming conventions for SQL scripts
+#############################################################################################
+$CheckDetail = "Naming conventions sqlscripts"
+$Severity = ($checkDetails | Where-Object { $_.checkName -eq "naming_convention_sqlscripts"} | Select-Object ).severity
+if($Severity -ne "ignore") {
+	$CheckNumber += 1
+    ForEach ($SQLScript in $SQLScripts)
+    {
+        $SQLScriptName = (CleanName -RawValue $SQLScript.name.ToString())
+        $CheckSQLScriptName = CheckName -ObjectName $SQLScriptName
+        $CheckSQLScriptPrefix = CheckPrefix -ObjectName $SQLScriptName -ObjectType "SqlQuery"
 
+        if(! $CheckSQLScriptName.passed)
+        {        
+            $CheckCounter += 1
+            $VerboseDetailTable += [PSCustomObject]@{
+                Component = "SqlScript";
+                Name = $SQLScriptName;
+                CheckDetail = "Name does not adhere to naming convention (characters), offending characters: $($CheckSQLScriptName.offendingCharacters)";
+                Severity = $Severity
+            }
+        }
+
+        if(! $CheckSQLScriptPrefix.passed)
+        {        
+            $CheckCounter += 1
+            $VerboseDetailTable += [PSCustomObject]@{
+                Component = "SqlScript";
+                Name = $SQLScriptName;
+                CheckDetail = "Name does not adhere to naming convention (prefix), should start with $($CheckSQLScriptPrefix.prefix)";
+                Severity = $Severity
+            }
+        }
+    }
+    $SummaryTable += [PSCustomObject]@{
+            IssueCount = $CheckCounter; 
+            CheckDetail = $CheckDetail;
+            Severity = $Severity
+        }
+    $CheckCounter = 0
+}
 
 #############################################################################################
 Write-Host ""
