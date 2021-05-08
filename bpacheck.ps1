@@ -1,3 +1,5 @@
+#Todo, change all activities to use $Activities to get nested values
+
 ##Retrieve all arguments
 [CmdletBinding()]
 param(
@@ -48,42 +50,6 @@ function CheckName {
         $offendingCharacters = (Select-String $negativeRegex -input $ObjectName -AllMatches | ForEach-Object {$_.matches.value} | Sort-Object | Get-Unique | Join-String -DoubleQuote -Separator ', ')
     }
     return [PSCustomObject]@{passed=$Check;offendingCharacters=$offendingCharacters}
-}
-#############################################################################################
-# Helper functions for adding to tables
-#############################################################################################
-function AddToLogObject {
-    param (
-        [parameter(Mandatory = $true)] [PSCustomObject] $Object,
-        [parameter(Mandatory = $true)] [String] $Component,
-        [parameter(Mandatory = $true)] [String] $Name,
-        [parameter(Mandatory = $true)] [String] $CheckDetail,
-        [parameter(Mandatory = $true)] [String] $Severity
-        
-    )
-    $Object += [PSCustomObject]@{
-        Component = $Component;
-        Name = $Name;
-        CheckDetail = $CheckDetail;
-        Severity = $Severity
-    }
-}
-
-
-function AddToSummaryLogObject {
-    param (
-        [parameter(Mandatory = $true)] [PSCustomObject] $Object,
-        [parameter(Mandatory = $true)] [String] $IssueCount,
-        [parameter(Mandatory = $true)] [String] $CheckDetail,
-        [parameter(Mandatory = $true)] [String] $Severity
-        
-    )
-    $Object += [PSCustomObject]@{
-        Component = $Component;
-        IssueCount = $IssueCount;
-        CheckDetail = $CheckDetail;
-        Severity = $Severity
-    }
 }
 
 #############################################################################################
@@ -423,62 +389,58 @@ $CheckDetail = "Pipeline(s) with an impossible AND/OR activity execution chain."
 $Severity = ($checkDetails | Where-Object { $_.checkName -eq "pipeline_impossible_execution_chain"} | Select-Object ).severity
 if($Severity -ne "ignore") {
 	$CheckNumber += 1
-    ForEach($Pipeline in $Pipelines)
+    $ActivityFailureDependencies = New-Object System.Collections.ArrayList($null)
+    $ActivitySuccessDependencies = New-Object System.Collections.ArrayList($null)
+
+    #get upstream failure dependants
+    ForEach($Activity in $Activities)
     {
-        $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
-        $ActivityFailureDependencies = New-Object System.Collections.ArrayList($null)
-        $ActivitySuccessDependencies = New-Object System.Collections.ArrayList($null)
-
-        #get upstream failure dependants
-        ForEach($Activity in $Pipeline.properties.activities)
+        if($Activity.dependsOn.Count -gt 1)
         {
-            if($Activity.dependsOn.Count -gt 1)
+            ForEach($UpStreamActivity in $Activity.dependsOn)
             {
-                ForEach($UpStreamActivity in $Activity.dependsOn)
-                {
-                    if(($UpStreamActivity.dependencyConditions.Contains('Failed')) -or ($UpStreamActivity.dependencyConditions.Contains('Skipped')))
-                    {  
-                        if(-not ($ActivityFailureDependencies -contains $UpStreamActivity.activity))
-                        {
-                            [void]$ActivityFailureDependencies.Add($UpStreamActivity.activity)
-                        }
-                    }
-                }
-            }
-        }
-
-        #get downstream success dependants
-        ForEach($ActivityDependant in $ActivityFailureDependencies)
-        {
-            ForEach($Activity in $Pipeline.properties.activities | Where-Object {$_.name -eq $ActivityDependant})
-            {
-                if($Activity.dependsOn.Count -ge 1)
-                {
-                    ForEach($DownStreamActivity in $Activity.dependsOn)
+                if(($UpStreamActivity.dependencyConditions.Contains('Failed')) -or ($UpStreamActivity.dependencyConditions.Contains('Skipped')))
+                {  
+                    if(-not ($ActivityFailureDependencies -contains $UpStreamActivity.activity))
                     {
-                        if($DownStreamActivity.dependencyConditions.Contains('Succeeded'))
-                        {                  
-                            if(-not ($ActivitySuccessDependencies -contains $DownStreamActivity.activity))
-                            {
-                                [void]$ActivitySuccessDependencies.Add($DownStreamActivity.activity)
-                            }
+                        [void]$ActivityFailureDependencies.Add($UpStreamActivity.activity)
+                    }
+                }
+            }
+        }
+    }
+
+    #get downstream success dependants
+    ForEach($ActivityDependant in $ActivityFailureDependencies)
+    {
+        ForEach($Activity in $Activities | Where-Object {$_.name -eq $ActivityDependant})
+        {
+            if($Activity.dependsOn.Count -ge 1)
+            {
+                ForEach($DownStreamActivity in $Activity.dependsOn)
+                {
+                    if($DownStreamActivity.dependencyConditions.Contains('Succeeded'))
+                    {                  
+                        if(-not ($ActivitySuccessDependencies -contains $DownStreamActivity.activity))
+                        {
+                            [void]$ActivitySuccessDependencies.Add($DownStreamActivity.activity)
                         }
                     }
                 }
             }
         }
-        
-        #compare dependants - do they exist in both lists?
-        $Problems = $ActivityFailureDependencies | Where-Object {$ActivitySuccessDependencies -contains $_}
-        if($Problems.Count -gt 0)
-        {
-            $CheckCounter += 1
-            $VerboseDetailTable += [PSCustomObject]@{
-                Component = "Pipeline";
-                Name = $PipelineName;
-                CheckDetail = "Has an impossible AND/OR activity execution chain.";
-                Severity = $Severity
-            }
+    }
+    
+    #compare dependants - do they exist in both lists?
+    $Problems = $ActivityFailureDependencies | Where-Object {$ActivitySuccessDependencies -contains $_}
+    if($Problems.Count -gt 0)
+    {
+        $CheckCounter += 1
+        $VerboseDetailTable += [PSCustomObject]@{
+            Component = "Pipeline";
+            Name = $PipelineName;
+            CheckDetail = "Has an impossible AND/OR activity execution chain.";
+            Severity = $Severity
         }
     }
     $SummaryTable += [PSCustomObject]@{
@@ -618,21 +580,18 @@ $CheckDetail = "Activitie(s) with timeout values still set to the service defaul
 $Severity = ($checkDetails | Where-Object { $_.checkName -eq "activity_timeout_value"} | Select-Object ).severity
 if($Severity -ne "ignore") {
 	$CheckNumber += 1
-    ForEach ($Pipeline in $Pipelines){
-        $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
-        ForEach ($Activity in $Pipeline.properties.activities) {
-            $timeout = $Activity.policy.timeout
-            if(-not ([string]::IsNullOrEmpty($timeout)))
-            {        
-                if($timeout -eq "7.00:00:00")
-                {
-                    $CheckCounter += 1           
-                    $VerboseDetailTable += [PSCustomObject]@{
-                        Component = "Activity";
-                        Name = $Activity.Name + " in " + $PipelineName;
-                        CheckDetail = "Timeout policy still set to the service default value of 7 days.";
-                        Severity = $Severity
-                    }
+    ForEach ($Activity in $Activities) {
+        $timeout = $Activity.policy.timeout
+        if(-not ([string]::IsNullOrEmpty($timeout)))
+        {        
+            if($timeout -eq "7.00:00:00")
+            {
+                $CheckCounter += 1           
+                $VerboseDetailTable += [PSCustomObject]@{
+                    Component = "Activity";
+                    Name = $Activity.Name;
+                    CheckDetail = "Timeout policy still set to the service default value of 7 days.";
+                    Severity = $Severity
                 }
             }
         }
@@ -653,20 +612,17 @@ $CheckDetail = "Activitie(s) without a description value."
 $Severity = ($checkDetails | Where-Object { $_.checkName -eq "activity_description"} | Select-Object ).severity
 if($Severity -ne "ignore") {
 	$CheckNumber += 1
-    ForEach ($Pipeline in $Pipelines){
-        $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
-        ForEach ($Activity in $Pipeline.properties.activities) 
-        {
-            $ActivityDescription = $Activity.description
-            if(([string]::IsNullOrEmpty($ActivityDescription)))
-            {        
-                $CheckCounter += 1         
-                $VerboseDetailTable += [PSCustomObject]@{
-                    Component = "Activity";
-                    Name = $Activity.Name + " in " + $PipelineName;;
-                    CheckDetail = "Does not have a description.";
-                    Severity = $Severity
-                }
+    ForEach ($Activity in $Activities) 
+    {
+        $ActivityDescription = $Activity.description
+        if(([string]::IsNullOrEmpty($ActivityDescription)))
+        {        
+            $CheckCounter += 1         
+            $VerboseDetailTable += [PSCustomObject]@{
+                Component = "Activity";
+                Name = $Activity.Name;
+                CheckDetail = "Does not have a description.";
+                Severity = $Severity
             }
         }
     }
@@ -685,28 +641,25 @@ $CheckDetail = "Activitie(s) ForEach iteration without a batch count value set."
 $Severity = ($checkDetails | Where-Object { $_.checkName -eq "activity_batch_size_unset"} | Select-Object ).severity
 if($Severity -ne "ignore") {
 	$CheckNumber += 1
-    ForEach ($Pipeline in $Pipelines){
-        $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
-        ForEach ($Activity in $Pipeline.properties.activities | Where-Object {$_.type -eq "ForEach"})
-        {   
-            [bool]$isSequential = $false #attribute may only exist if changed, assume not present in arm template
-            if((-not [string]::IsNullOrEmpty($Activity.typeProperties.isSequential)))
-            {
-                $isSequential = $Activity.typeProperties.isSequential
-            }
-            $BatchCount = $Activity.typeProperties.batchCount
+    ForEach ($Activity in $Activities | Where-Object {$_.type -eq "ForEach"})
+    {   
+        [bool]$isSequential = $false #attribute may only exist if changed, assume not present in arm template
+        if((-not [string]::IsNullOrEmpty($Activity.typeProperties.isSequential)))
+        {
+            $isSequential = $Activity.typeProperties.isSequential
+        }
+        $BatchCount = $Activity.typeProperties.batchCount
 
-            if(!$isSequential)
-            {
-                if(([string]::IsNullOrEmpty($BatchCount)))
-                {        
-                    $CheckCounter += 1
-                    $VerboseDetailTable += [PSCustomObject]@{
-                        Component = "Activity";
-                        Name = $Activity.Name + " in " + $PipelineName;
-                        CheckDetail = "ForEach does not have a batch count value set, should be set to service maximum (50).";
-                        Severity = $Severity
-                    }
+        if(!$isSequential)
+        {
+            if(([string]::IsNullOrEmpty($BatchCount)))
+            {        
+                $CheckCounter += 1
+                $VerboseDetailTable += [PSCustomObject]@{
+                    Component = "Activity";
+                    Name = $Activity.Name;
+                    CheckDetail = "ForEach does not have a batch count value set, should be set to service maximum (50).";
+                    Severity = $Severity
                 }
             }
         }
@@ -727,28 +680,25 @@ $CheckDetail = "Activitie(s) ForEach iteration with a batch count size that is l
 $Severity = ($checkDetails | Where-Object { $_.checkName -eq "activity_batch_size_less_than_max"} | Select-Object ).severity
 if($Severity -ne "ignore") {
 	$CheckNumber += 1
-    ForEach ($Pipeline in $Pipelines){
-        $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
-        ForEach ($Activity in $Pipeline.properties.activities | Where-Object {$_.type -eq "ForEach"})
-        {     
-            [bool]$isSequential = $false #attribute may only exist if changed, assume not present in arm template
-            if((-not [string]::IsNullOrEmpty($Activity.typeProperties.isSequential)))
-            {
-                $isSequential = $Activity.typeProperties.isSequential
-            }
-            $BatchCount = $Activity.typeProperties.batchCount
+    ForEach ($Activity in $Activities | Where-Object {$_.type -eq "ForEach"})
+    {     
+        [bool]$isSequential = $false #attribute may only exist if changed, assume not present in arm template
+        if((-not [string]::IsNullOrEmpty($Activity.typeProperties.isSequential)))
+        {
+            $isSequential = $Activity.typeProperties.isSequential
+        }
+        $BatchCount = $Activity.typeProperties.batchCount
 
-            if(!$isSequential)
-            {
-                if($BatchCount -lt 50)
-                {        
-                    $CheckCounter += 1
-                    $VerboseDetailTable += [PSCustomObject]@{
-                        Component = "Activity";
-                        Name = $Activity.Name + " in " + $PipelineName;;
-                        CheckDetail = "ForEach has a batch size that is less than the service maximum (50).";
-                        Severity = $Severity
-                    }
+        if(!$isSequential)
+        {
+            if($BatchCount -lt 50)
+            {        
+                $CheckCounter += 1
+                $VerboseDetailTable += [PSCustomObject]@{
+                    Component = "Activity";
+                    Name = $Activity.Name;
+                    CheckDetail = "ForEach has a batch size that is less than the service maximum (50).";
+                    Severity = $Severity
                 }
             }
         }
@@ -1114,19 +1064,16 @@ $CheckDetail = "Activitie(s) SQL lookup timeout set to default"
 $Severity = ($checkDetails | Where-Object { $_.checkName -eq "lookup_sql_timeout"} | Select-Object ).severity
 if($Severity -ne "ignore") {
 	$CheckNumber += 1    
-    ForEach ($Pipeline in $Pipelines){
-        $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
-        ForEach ($Activity in $Pipeline.properties.activities | Where-Object {$_.type -eq "Lookup"})
-        {     
-            if(($Activity.typeProperties.source.type -eq 'AzureSqlSource')) {
-                if($Activity.typeProperties.source.queryTimeout -eq '02:00:00') {
-                    $CheckCounter += 1
-                    $VerboseDetailTable += [PSCustomObject]@{
-                        Component = "Activity";
-                        Name = $Activity.Name + " in " + $PipelineName;;
-                        CheckDetail = "SQL query timeout is set to default value";
-                        Severity = $Severity
-                    }
+    ForEach ($Activity in $Activities | Where-Object {$_.type -eq "Lookup"})
+    {     
+        if(($Activity.typeProperties.source.type -eq 'AzureSqlSource')) {
+            if($Activity.typeProperties.source.queryTimeout -eq '02:00:00') {
+                $CheckCounter += 1
+                $VerboseDetailTable += [PSCustomObject]@{
+                    Component = "Activity";
+                    Name = $Activity.Name;
+                    CheckDetail = "SQL query timeout is set to default value";
+                    Severity = $Severity
                 }
             }
         }
@@ -1189,33 +1136,28 @@ $CheckDetail = "Naming conventions activities"
 $Severity = ($checkDetails | Where-Object { $_.checkName -eq "naming_convention_activity"} | Select-Object ).severity
 if($Severity -ne "ignore") {
 	$CheckNumber += 1
-    ForEach ($Pipeline in $Pipelines)
-    {
-        $PipelineName = (CleanName -RawValue $Pipeline.name.ToString())
+    ForEach ($Activity in $Activities) {
+        $ActivityCheckPrefix = CheckPrefix -ObjectName $Activity.Name -ObjectType $Activity.Type
+        $ActivityCheckName = CheckName -ObjectName $Activity.Name
 
-        ForEach ($Activity in $Pipeline.properties.activities) {
-            $ActivityCheckPrefix = CheckPrefix -ObjectName $Activity.Name -ObjectType $Activity.Type
-            $ActivityCheckName = CheckName -ObjectName $Activity.Name
-
-            if(! $ActivityCheckPrefix.passed)
-            {        
-                $CheckCounter += 1
-                $VerboseDetailTable += [PSCustomObject]@{
-                    Component = "Activity";
-                    Name = "'" + $Activity.Name + "' in " + $PipelineName;
-                    CheckDetail = "Name does not adhere to naming convention (prefix), should start with $($ActivityCheckPrefix.prefix)";
-                    Severity = $Severity
-                }
+        if(! $ActivityCheckPrefix.passed)
+        {        
+            $CheckCounter += 1
+            $VerboseDetailTable += [PSCustomObject]@{
+                Component = "Activity";
+                Name = $Activity.Name;
+                CheckDetail = "Name does not adhere to naming convention (prefix), should start with $($ActivityCheckPrefix.prefix)";
+                Severity = $Severity
             }
-            if(! $ActivityCheckName.passed)
-            {        
-                $CheckCounter += 1
-                $VerboseDetailTable += [PSCustomObject]@{
-                    Component = "Activity";
-                    Name = "'" + $Activity.Name + "' in " + $PipelineName;
-                    CheckDetail = "Name does not adhere to naming convention (characters), offending characters: $($ActivityCheckName.offendingCharacters)";
-                    Severity = $Severity
-                }
+        }
+        if(! $ActivityCheckName.passed)
+        {        
+            $CheckCounter += 1
+            $VerboseDetailTable += [PSCustomObject]@{
+                Component = "Activity";
+                Name = $Activity.Name;
+                CheckDetail = "Name does not adhere to naming convention (characters), offending characters: $($ActivityCheckName.offendingCharacters)";
+                Severity = $Severity
             }
         }
     }
