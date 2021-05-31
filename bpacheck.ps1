@@ -1265,7 +1265,7 @@ if($Severity -ne "ignore") {
         $LinkedServiceName = (CleanName -RawValue $LinkedService.name.ToString())
         $CheckLinkedServiceName = CheckName -ObjectName $LinkedServiceName
         $CheckLinkedServicePrefix = CheckPrefix -ObjectName $LinkedServiceName -ObjectType "LinkedService"
-        if(!($LinkedServiceName -contains "WorkspaceDefaultStorage" -or $LinkedServiceName -contains "WorkspaceDefaultSqlServer")){
+        if(!($LinkedServiceName -like "*WorkspaceDefaultStorage" -or $LinkedServiceName -like "*WorkspaceDefaultSqlServer")){
             if(! $CheckLinkedServiceName.passed)
             {        
                 $CheckCounter += 1
@@ -1277,7 +1277,7 @@ if($Severity -ne "ignore") {
                 }
             }
 
-            if(! $CheckLinkedServiceScriptPrefix.passed)
+            if(! $CheckLinkedServicePrefix.passed)
             {        
                 $CheckCounter += 1
                 $VerboseDetailTable += [PSCustomObject]@{
