@@ -34,7 +34,8 @@
         {"checkName": "naming_convention_pipeline", "severity": "high"},
         {"checkName": "naming_convention_activity", "severity": "high"},
         {"checkName": "naming_convention_dataset", "severity": "high"},
-        {"checkName": "naming_convention_sqlscripts", "severity": "high"}
+        {"checkName": "naming_convention_sqlscripts", "severity": "high"},
+        {"checkName": "naming_convention_linked_service", "severity": "high"}
     ],
     "namingConvention": [
         {"objectName": "Pipeline", "prefix": "PL"},

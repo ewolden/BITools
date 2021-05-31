@@ -280,16 +280,16 @@ if($isFolder) {
             }
         }
     }
-
+    #TODO: add source/sink
     #For dataflows check datasets
     ForEach($Dataflow in $DataFlows) {
-        ForEach($Dataset in $Dataflow.typeProperties.properties.sources) {
+        ForEach($Dataset in $Dataflow.properties.typeProperties.sources) {
             $DependantName = "datasets" + "|" + $Dataset.dataset.referenceName
             if(-not ($DependantsList -contains $DependantName)) {
                 [void]$DependantsList.Add($DependantName)
             }
         }
-        ForEach($Dataset in $Dataflow.typeProperties.properties.sinks) {
+        ForEach($Dataset in $Dataflow.properties.typeProperties.sinks) {
             $DependantName = "datasets" + "|" + $Dataset.dataset.referenceName
             if(-not ($DependantsList -contains $DependantName)) {
                 [void]$DependantsList.Add($DependantName)
@@ -1241,6 +1241,49 @@ if($Severity -ne "ignore") {
                 Component = "SqlScript";
                 Name = $SQLScriptName;
                 CheckDetail = "Name does not adhere to naming convention (prefix), should start with $($CheckSQLScriptPrefix.prefix)";
+                Severity = $Severity
+            }
+        }
+    }
+    $SummaryTable += [PSCustomObject]@{
+            IssueCount = $CheckCounter; 
+            CheckDetail = $CheckDetail;
+            Severity = $Severity
+        }
+    $CheckCounter = 0
+}
+
+#############################################################################################
+# Check naming conventions for Linked services
+#############################################################################################
+$CheckDetail = "Naming conventions linked service"
+$Severity = ($checkDetails | Where-Object { $_.checkName -eq "naming_convention_linked_service"} | Select-Object ).severity
+if($Severity -ne "ignore") {
+	$CheckNumber += 1
+    ForEach ($LinkedService in $LinkedServices)
+    {
+        $LinkedServiceScriptName = (CleanName -RawValue $LinkedService.name.ToString())
+        $CheckLinkedServiceScriptName = CheckName -ObjectName $LinkedServiceScriptName
+        $CheckLinkedServiceScriptPrefix = CheckPrefix -ObjectName $LinkedServiceScriptName -ObjectType "LinkedService"
+
+        if(! $CheckLinkedServiceScriptName.passed)
+        {        
+            $CheckCounter += 1
+            $VerboseDetailTable += [PSCustomObject]@{
+                Component = "SqlScript";
+                Name = $SQLScriptName;
+                CheckDetail = "Name does not adhere to naming convention (characters), offending characters: $($CheckLinkedServiceScriptName.offendingCharacters)";
+                Severity = $Severity
+            }
+        }
+
+        if(! $CheckLinkedServiceScriptPrefix.passed)
+        {        
+            $CheckCounter += 1
+            $VerboseDetailTable += [PSCustomObject]@{
+                Component = "SqlScript";
+                Name = $SQLScriptName;
+                CheckDetail = "Name does not adhere to naming convention (prefix), should start with $($CheckLinkedServiceScriptPrefix.prefix)";
                 Severity = $Severity
             }
         }
