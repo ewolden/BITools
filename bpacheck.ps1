@@ -1265,28 +1265,30 @@ if($Severity -ne "ignore") {
         $LinkedServiceScriptName = (CleanName -RawValue $LinkedService.name.ToString())
         $CheckLinkedServiceScriptName = CheckName -ObjectName $LinkedServiceScriptName
         $CheckLinkedServiceScriptPrefix = CheckPrefix -ObjectName $LinkedServiceScriptName -ObjectType "LinkedService"
+        if(!($LinkedServiceScriptName -contains "WorkspaceDefaultStorage" -or $LinkedServiceScriptName -contains "WorkspaceDefaultSqlServer")){
+            if(! $CheckLinkedServiceScriptName.passed)
+            {        
+                $CheckCounter += 1
+                $VerboseDetailTable += [PSCustomObject]@{
+                    Component = "LinkedService";
+                    Name = $SQLScriptName;
+                    CheckDetail = "Name does not adhere to naming convention (characters), offending characters: $($CheckLinkedServiceScriptName.offendingCharacters)";
+                    Severity = $Severity
+                }
+            }
 
-        if(! $CheckLinkedServiceScriptName.passed)
-        {        
-            $CheckCounter += 1
-            $VerboseDetailTable += [PSCustomObject]@{
-                Component = "SqlScript";
-                Name = $SQLScriptName;
-                CheckDetail = "Name does not adhere to naming convention (characters), offending characters: $($CheckLinkedServiceScriptName.offendingCharacters)";
-                Severity = $Severity
+            if(! $CheckLinkedServiceScriptPrefix.passed)
+            {        
+                $CheckCounter += 1
+                $VerboseDetailTable += [PSCustomObject]@{
+                    Component = "LinkedService";
+                    Name = $SQLScriptName;
+                    CheckDetail = "Name does not adhere to naming convention (prefix), should start with $($CheckLinkedServiceScriptPrefix.prefix)";
+                    Severity = $Severity
+                }
             }
         }
-
-        if(! $CheckLinkedServiceScriptPrefix.passed)
-        {        
-            $CheckCounter += 1
-            $VerboseDetailTable += [PSCustomObject]@{
-                Component = "SqlScript";
-                Name = $SQLScriptName;
-                CheckDetail = "Name does not adhere to naming convention (prefix), should start with $($CheckLinkedServiceScriptPrefix.prefix)";
-                Severity = $Severity
-            }
-        }
+        
     }
     $SummaryTable += [PSCustomObject]@{
             IssueCount = $CheckCounter; 
