@@ -1262,17 +1262,17 @@ if($Severity -ne "ignore") {
 	$CheckNumber += 1
     ForEach ($LinkedService in $LinkedServices)
     {
-        $LinkedServiceScriptName = (CleanName -RawValue $LinkedService.name.ToString())
-        $CheckLinkedServiceScriptName = CheckName -ObjectName $LinkedServiceScriptName
-        $CheckLinkedServiceScriptPrefix = CheckPrefix -ObjectName $LinkedServiceScriptName -ObjectType "LinkedService"
-        if(!($LinkedServiceScriptName -contains "WorkspaceDefaultStorage" -or $LinkedServiceScriptName -contains "WorkspaceDefaultSqlServer")){
-            if(! $CheckLinkedServiceScriptName.passed)
+        $LinkedServiceName = (CleanName -RawValue $LinkedService.name.ToString())
+        $CheckLinkedServiceName = CheckName -ObjectName $LinkedServiceName
+        $CheckLinkedServicePrefix = CheckPrefix -ObjectName $LinkedServiceName -ObjectType "LinkedService"
+        if(!($LinkedServiceName -contains "WorkspaceDefaultStorage" -or $LinkedServiceName -contains "WorkspaceDefaultSqlServer")){
+            if(! $CheckLinkedServiceName.passed)
             {        
                 $CheckCounter += 1
                 $VerboseDetailTable += [PSCustomObject]@{
                     Component = "LinkedService";
-                    Name = $SQLScriptName;
-                    CheckDetail = "Name does not adhere to naming convention (characters), offending characters: $($CheckLinkedServiceScriptName.offendingCharacters)";
+                    Name = $LinkedServiceName;
+                    CheckDetail = "Name does not adhere to naming convention (characters), offending characters: $($CheckLinkedServiceName.offendingCharacters)";
                     Severity = $Severity
                 }
             }
@@ -1282,8 +1282,8 @@ if($Severity -ne "ignore") {
                 $CheckCounter += 1
                 $VerboseDetailTable += [PSCustomObject]@{
                     Component = "LinkedService";
-                    Name = $SQLScriptName;
-                    CheckDetail = "Name does not adhere to naming convention (prefix), should start with $($CheckLinkedServiceScriptPrefix.prefix)";
+                    Name = $LinkedServiceName;
+                    CheckDetail = "Name does not adhere to naming convention (prefix), should start with $($CheckLinkedServicePrefix.prefix)";
                     Severity = $Severity
                 }
             }
