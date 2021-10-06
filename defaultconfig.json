@@ -41,7 +41,7 @@
         {"objectName": "Pipeline", "prefix": "PL"},
         {"objectName": "Dataset", "prefix": "DS"},
         {"objectName": "Lookup", "prefix": "LKP"},
-        {"objectName": "GetMetadata", "prefix": "GN"},
+        {"objectName": "GetMetadata", "prefix": "GM"},
         {"objectName": "SetVariable", "prefix": "SET"},
         {"objectName": "AppendVariable", "prefix": "APV"},
         {"objectName": "ForEach", "prefix": "FE"},
