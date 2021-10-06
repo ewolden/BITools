@@ -1302,7 +1302,7 @@ if($Severity -ne "ignore") {
 Write-Host ""
 Write-Host $Hr
 
-   
+
 Write-Host ""
 Write-Host "Results Summary:"
 Write-Host ""
@@ -1310,52 +1310,57 @@ Write-Host "Checks ran against template:" $CheckNumber
 Write-Host "Checks with issues found:" ($SummaryTable | Where-Object {$_.IssueCount -ne 0}).Count.ToString()
 Write-Host "Total issue count:" ($SummaryTable | Measure-Object -Property IssueCount -Sum).Sum
 
-$SummaryTable = $SummaryTable | Sort-Object {$importance.Indexof($_.Severity)}
+if ($SummaryTable) {
+    $SummaryTable = $SummaryTable | Sort-Object {$importance.Indexof($_.Severity)}
 
-$SummaryTable | Where-Object {$_.IssueCount -ne 0} | Format-Table @{
-    Label = "Issue Count";Expression = {$_.IssueCount}; Alignment="Center"}, @{
-    Label = "Check Details";Expression = {$_.CheckDetail}}, @{
-    Label = "Severity";
-    Expression =
-    {
-        switch ($_.Severity)
+    $SummaryTable | Where-Object {$_.IssueCount -ne 0} | Format-Table @{
+        Label = "Issue Count";Expression = {$_.IssueCount}; Alignment="Center"}, @{
+        Label = "Check Details";Expression = {$_.CheckDetail}}, @{
+        Label = "Severity";
+        Expression =
         {
-            #https://docs.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences#span-idtextformattingspanspan-idtextformattingspanspan-idtextformattingspantext-formatting
-            'ignore' {$color = $severities[0].color; break }
-            'info' {$color = $severities[1].color; break }
-            'low' {$color = $severities[2].color; break }
-            'medium' {$color = $severities[3].color; break }
-            'high' {$color = $severities[4].color; break }
-            'critical' {$color = $severities[5].color; break }
-            default {$color = "0"}
+            switch ($_.Severity)
+            {
+                #https://docs.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences#span-idtextformattingspanspan-idtextformattingspanspan-idtextformattingspantext-formatting
+                'ignore' {$color = $severities[0].color; break }
+                'info' {$color = $severities[1].color; break }
+                'low' {$color = $severities[2].color; break }
+                'medium' {$color = $severities[3].color; break }
+                'high' {$color = $severities[4].color; break }
+                'critical' {$color = $severities[5].color; break }
+                default {$color = "0"}
+            }
+            $e = [char]27
+            "$e[${color}m$($_.Severity)${e}[0m"
         }
-        $e = [char]27
-        "$e[${color}m$($_.Severity)${e}[0m"
+    }
+
+    Write-Host $Hr
+
+    Write-Host ""
+    Write-Host "Results Details:"
+    #Sort verbose table according to Severity
+    $VerboseDetailTable = $VerboseDetailTable | Sort-Object {$importance.Indexof($_.Severity)}, {($_.Component)}, {($_.CheckDetail)} 
+
+    $tab = [char]9
+    ForEach ($Detail in $VerboseDetailTable) {
+        if(($Detail.Severity -eq "High") -or ($Detail.Severity -eq "Medium")) {
+            Write-Host "##vso[task.LogIssue type=error;]" $Detail.Component $tab $Detail.CheckDetail $tab $Detail.Name
+        } elseif($Detail.Severity -eq "Low") {
+            Write-Host "##vso[task.LogIssue type=warning;]" $Detail.Component $tab $Detail.CheckDetail $tab $Detail.Name
+        } else {
+            Write-Host $Detail.Component $tab $Detail.CheckDetail $tab $Detail.Name
+        }
+    }
+
+    if(($VerboseDetailTable.Severity -contains "High") -or ($VerboseDetailTable.Severity -contains "Medium")) {
+        Write-Host "##vso[task.complete result=Failed;]DONE"
+    } elseif ($VerboseDetailTable.Severity -contains "Low") {
+        Write-Host "##vso[task.complete result=SucceededWithIssues;]DONE"
+    } else {
+        Write-Host "##vso[task.complete result=Succeeded;]DONE"
     }
 }
-
-Write-Host $Hr
-
-Write-Host ""
-Write-Host "Results Details:"
-#Sort verbose table according to Severity
-$VerboseDetailTable = $VerboseDetailTable | Sort-Object {$importance.Indexof($_.Severity)}, {($_.Component)}, {($_.CheckDetail)} 
-
-$tab = [char]9
-ForEach ($Detail in $VerboseDetailTable) {
-    if(($Detail.Severity -eq "High") -or ($Detail.Severity -eq "Medium")) {
-        Write-Host "##vso[task.LogIssue type=error;]" $Detail.Component $tab $Detail.CheckDetail $tab $Detail.Name
-    } elseif($Detail.Severity -eq "Low") {
-        Write-Host "##vso[task.LogIssue type=warning;]" $Detail.Component $tab $Detail.CheckDetail $tab $Detail.Name
-    } else {
-        Write-Host $Detail.Component $tab $Detail.CheckDetail $tab $Detail.Name
-	}
-}
-
-if(($VerboseDetailTable.Severity -contains "High") -or ($VerboseDetailTable.Severity -contains "Medium")) {
-    Write-Host "##vso[task.complete result=Failed;]DONE"
-} elseif ($VerboseDetailTable.Severity -contains "Low") {
-    Write-Host "##vso[task.complete result=SucceededWithIssues;]DONE"
-} else {
-    Write-Host "##vso[task.complete result=Succeeded;]DONE"
+else {
+    Write-Host "No errors found!"
 }
