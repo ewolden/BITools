@@ -826,7 +826,7 @@ $CheckDetail = "Linked Service(s) without annotations."
 $Severity = ($checkDetails | Where-Object { $_.checkName -eq "linked_service_without_annotation"} | Select-Object ).severity
 if($Severity -ne "ignore") {
 	$CheckNumber += 1
-    ForEach ($Pipeline in $Pipelines)
+    ForEach ($LinkedService in $LinkedServices)
     {
         $LinkedServiceName = (CleanName -RawValue $LinkedService.name.ToString())
         $LinkedServiceAnnotations = $Pipeline.properties.annotations.Count
