@@ -223,7 +223,7 @@ if($isFolder) {
                 }
             }
             ForEach($output in $Activity.outputs) {
-                $DependantName = "datasets" + "|" + $input.referenceName
+                $DependantName = "datasets" + "|" + $output.referenceName
                 if(-not ($DependantsList -contains $DependantName)) {
                     [void]$DependantsList.Add($DependantName)
                 }
