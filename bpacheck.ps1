@@ -1344,7 +1344,7 @@ if ($SummaryTable) {
 
     $tab = [char]9
     ForEach ($Detail in $VerboseDetailTable) {
-        if(($Detail.Severity -eq "High") -or ($Detail.Severity -eq "Medium")) {
+        if(($Detail.Severity -eq "Critical") -or ($Detail.Severity -eq "High") -or ($Detail.Severity -eq "Medium")) {
             Write-Host "##vso[task.LogIssue type=error;]" $Detail.Component $tab $Detail.CheckDetail $tab $Detail.Name
         } elseif($Detail.Severity -eq "Low") {
             Write-Host "##vso[task.LogIssue type=warning;]" $Detail.Component $tab $Detail.CheckDetail $tab $Detail.Name
