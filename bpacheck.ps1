@@ -53,7 +53,6 @@ function CheckName {
 #############################################################################################
 # Helper functions for identifying all activities
 #############################################################################################
-
 function FindSubActivities {
     param (
         [parameter(Mandatory = $true)] [PSCustomObject] $Activities
@@ -280,7 +279,7 @@ if($isFolder) {
             }
         }
     }
-    #TODO: add source/sink
+
     #For dataflows check datasets
     ForEach($Dataflow in $DataFlows) {
         ForEach($Dataset in $Dataflow.properties.typeProperties.sources) {
@@ -713,7 +712,7 @@ if($Severity -ne "ignore") {
 #Check linked service using key vault
 #############################################################################################
 $CheckDetail = "Linked Service(s) not using Azure Key Vault to store credentials."
-$Severity = ($checkDetails | Where-Object { $_.checkName -eq "linked_service_using_key_vault"} | Select-Object ).severity
+$Severity = ($checkDetails | Where-Object { $_.checkName -eq "linked_service_not_using_key_vault"} | Select-Object ).severity
 if($Severity -ne "ignore") {
 	$CheckNumber += 1
     $LinkedServiceList = New-Object System.Collections.ArrayList($null)
@@ -749,15 +748,13 @@ if($Severity -ne "ignore") {
     $CheckCounter = 0
 
 
-    {  
-        ForEach ($LinkedServiceOutput in $LinkedServiceList)
-        {
-            $VerboseDetailTable += [PSCustomObject]@{
-                Component = "Linked Service";
-                Name = $LinkedServiceOutput;
-                CheckDetail = "Not using Key Vault to store credentials.";
-                Severity = $Severity
-            }
+    ForEach ($LinkedServiceOutput in $LinkedServiceList)
+    {
+        $VerboseDetailTable += [PSCustomObject]@{
+            Component = "Linked Service";
+            Name = $LinkedServiceOutput;
+            CheckDetail = "Not using Key Vault to store credentials.";
+            Severity = $Severity
         }
     }
 }
@@ -1288,7 +1285,6 @@ if($Severity -ne "ignore") {
                 }
             }
         }
-        
     }
     $SummaryTable += [PSCustomObject]@{
             IssueCount = $CheckCounter; 
@@ -1306,7 +1302,7 @@ Write-Host $Hr
 Write-Host ""
 Write-Host "Results Summary:"
 Write-Host ""
-Write-Host "Checks ran against template:" $CheckNumber
+Write-Host "Checks run against template:" $CheckNumber
 Write-Host "Checks with issues found:" ($SummaryTable | Where-Object {$_.IssueCount -ne 0}).Count.ToString()
 Write-Host "Total issue count:" ($SummaryTable | Measure-Object -Property IssueCount -Sum).Sum
 
@@ -1324,10 +1320,8 @@ if ($SummaryTable) {
                 #https://docs.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences#span-idtextformattingspanspan-idtextformattingspanspan-idtextformattingspantext-formatting
                 'ignore' {$color = $severities[0].color; break }
                 'info' {$color = $severities[1].color; break }
-                'low' {$color = $severities[2].color; break }
-                'medium' {$color = $severities[3].color; break }
-                'high' {$color = $severities[4].color; break }
-                'critical' {$color = $severities[5].color; break }
+                'warning' {$color = $severities[2].color; break }
+                'error' {$color = $severities[3].color; break }
                 default {$color = "0"}
             }
             $e = [char]27
@@ -1344,18 +1338,18 @@ if ($SummaryTable) {
 
     $tab = [char]9
     ForEach ($Detail in $VerboseDetailTable) {
-        if(($Detail.Severity -eq "Critical") -or ($Detail.Severity -eq "High") -or ($Detail.Severity -eq "Medium")) {
+        if($Detail.Severity -eq "Error") {
             Write-Host "##vso[task.LogIssue type=error;]" $Detail.Component $tab $Detail.CheckDetail $tab $Detail.Name
-        } elseif($Detail.Severity -eq "Low") {
+        } elseif($Detail.Severity -eq "Warning") {
             Write-Host "##vso[task.LogIssue type=warning;]" $Detail.Component $tab $Detail.CheckDetail $tab $Detail.Name
         } else {
             Write-Host $Detail.Component $tab $Detail.CheckDetail $tab $Detail.Name
         }
     }
 
-    if(($VerboseDetailTable.Severity -contains "High") -or ($VerboseDetailTable.Severity -contains "Medium")) {
+    if($VerboseDetailTable.Severity -contains "Error") {
         Write-Host "##vso[task.complete result=Failed;]DONE"
-    } elseif ($VerboseDetailTable.Severity -contains "Low") {
+    } elseif ($VerboseDetailTable.Severity -contains "Warning") {
         Write-Host "##vso[task.complete result=SucceededWithIssues;]DONE"
     } else {
         Write-Host "##vso[task.complete result=Succeeded;]DONE"
