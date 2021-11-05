@@ -1,7 +1,11 @@
 # Azure Data Factory/Azure Synapse Best Practice Analyzer
 The best practice analyzer is meant as a tool to help keep code consistent and following a list of best practices. By changing the configuration, you can enable/disable tests, or adjust the checks to adhere to the naming conventions used in your project.
 
-[ToC]
+## Contents
+[How to add as a submodule to a repository](#how-to-add-as-a-submodule-to-a-repository)
+[How to set up in Azure DevOps](#how-to-set-up-in-azure-devops)
+[Configuring the checks](#configuring-the-checks)
+[Credits](#credits)
 
 ## How to add as a submodule to a repository 
 Ref: [Git Tools- Submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules)
