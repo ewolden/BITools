@@ -16,7 +16,7 @@
         {"checkName": "activity_timeout_value", "severity": "error"},
         {"checkName": "activity_description", "severity": "warning"},
         {"checkName": "activity_batch_size_unset", "severity": "warning"},
-        {"checkName": "activity_batch_size_less_than_max", "severity": "info"},
+        {"checkName": "activity_batch_size_less_than_max", "severity": "warning"},
         {"checkName": "linked_service_not_using_key_vault", "severity": "warning"},
         {"checkName": "linked_service_not_in_use", "severity": "warning"},
         {"checkName": "linked_service_without_description", "severity": "warning"},
