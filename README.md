@@ -1,9 +1,10 @@
 # Azure Data Factory/Azure Synapse Best Practice Analyzer
-The best practice analyzer is meant as a tool to help keep code consistent and following a list of best practices. By changing the configuration, you can enable/disable tests, or adjust the checks to adhere to the naming conventions used in your project.
+The best practice analyzer is meant as a tool to help keep code consistent and following a list of best practices.  
+By changing the configuration, you can enable/disable tests, or adjust the checks to adhere to the naming conventions used in your project.
 
-## Contents
+### Contents
 [How to add as a submodule to a repository](#how-to-add-as-a-submodule-to-a-repository)  
-[How to set up in Azure DevOps](#how-to-set-up-in-azure-devops)  
+[How to add to a build pipeline in Azure DevOps](#how-to-set-up-in-azure-devops)  
 [Configuring the checks](#configuring-the-checks)  
 [Credits](#credits)  
 
@@ -61,7 +62,7 @@ This assumes files are placed in a folder in the repository called *`resourceFol
 
 ## Configuring the checks
 The file defaultconfig.json contains definitions of severity levels, which checks to run and rules for naming conventions.  
-We recommend that you copy this to a new file, and modifies the copy to per your requirements. OBS! You will need to set up the path to your config file as a second parameter in the yaml definiton. This can be done by adding the path as part of the arguments in the yaml definition, like this:
+We recommend that you copy this to a new file, and modifies the copy per your requirements. NB! You will need to set up the path to your config file as a second parameter in the yaml definiton. This can be done by adding your config files path as part of the arguments in the yaml definition, like this:
 ```
 # Run Best Practice checks
 - task: PowerShell@2
@@ -72,19 +73,18 @@ We recommend that you copy this to a new file, and modifies the copy to per your
   displayName: 'Run Best Practice Analyser'
 ```
 
-
 The config consists of 4 parts:
 ### Severity
-This is the definition of the severity levels. You can change the sort order (ie. the value), and the colors used. Please refer to 
-https://docs.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences#span-idtextformattingspanspan-idtextformattingspanspan-idtextformattingspantext-formatting for more information.  
+This is the definition of the severity levels. You can change the sort order (ie. **value**), and the colors used. Please refer to 
+https://docs.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences#span-idtextformattingspanspan-idtextformattingspanspan-idtextformattingspantext-formatting for more information on formatting and colors.  
 
 ### CheckDetails
 Has the definitions of each check and their severity.  
 
-Severity level "ignore" disables the check.  
-"info" outputs the results in the build pipeline log, but will not trigger any warnings or errors.  
-"warning" outputs the results in the build pipeline log, and triggers the warning state of the pipeline.  
-"error" outputs the results in the build pipeline log, and triggers an error in the pipeline.  
+Severity level "**ignore**" disables the check.  
+"**info**" outputs the results in the build pipeline log, but will not trigger any warnings or errors.  
+"**warning**" outputs the results in the build pipeline log, and triggers the warning state of the pipeline.  
+"**error**" outputs the results in the build pipeline log, and triggers an error in the pipeline.  
 
 ### NamingConvention
 Should possibly been renamed to prefixNamingConvention, as this defines the prefixes we want to use for the different objects. If you want to use other prefixes, you can change them here. The CheckDetails section enables/disables checks for the main types of objects, but should there be a specific object you don't want to check, you can change the prefix to "".
