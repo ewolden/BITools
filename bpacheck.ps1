@@ -16,7 +16,7 @@ $config = Get-Content -Raw -Path $configFilePath | ConvertFrom-Json
 
 $severities = $config.severity
 $checkDetails = $config.checkDetails
-$namingConvention = $config.namingConvention
+$prefixNamingConvention = $config.prefixNamingConvention
 $charsNamingConvention = $config.charsNamingConvention
 $importance = ($severities | Sort-Object -Property value -Descending).name
 
@@ -31,7 +31,7 @@ function CheckPrefix {
         [parameter(Mandatory = $true)] [String] $ObjectName,
         [parameter(Mandatory = $true)] [String] $ObjectType
     )
-    $PfxObject = ($namingConvention | Where-Object -Property objectName -eq $ObjectType).prefix
+    $PfxObject = ($prefixNamingConvention | Where-Object -Property objectName -eq $ObjectType).prefix
     $PfxLength = $PfxObject.Length
 
     $Check = ($ObjectName.Substring(0, $PfxLength) -eq $PfxObject)
