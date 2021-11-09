@@ -35,7 +35,8 @@
         {"checkName": "naming_convention_sqlscripts", "severity": "error"},
         {"checkName": "naming_convention_linked_service", "severity": "error"}
     ],
-    "namingConvention": [
+
+    "prefixNamingConvention": [
         {"objectName": "Pipeline", "prefix": "PL"},
         {"objectName": "Dataset", "prefix": "DS"},
         {"objectName": "Lookup", "prefix": "LKP"},
@@ -44,6 +45,7 @@
         {"objectName": "AppendVariable", "prefix": "APV"},
         {"objectName": "ForEach", "prefix": "FE"},
         {"objectName": "Filter", "prefix": "FLT"},
+        {"objectName": "Fail", "prefix": "FAIL"},
         {"objectName": "SqlServerStoredProcedure", "prefix": "SP"},
         {"objectName": "Copy", "prefix": "CP"},
         {"objectName": "ExecuteDataFlow", "prefix": "DF"},
@@ -76,5 +78,6 @@
         {"objectName": "LinkedService", "prefix": "LS"},
         {"objectName": "SqlQuery", "prefix": "SQL"}
     ],
+
     "charsNamingConvention":"a-zA-Z0-9_"
 }
