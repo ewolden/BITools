@@ -1,83 +1,297 @@
 {
     "severity": [
-        {"name": "ignore", "value": 0, "color": "0"},
-        {"name": "info", "value": 1, "color": "0"},
-        {"name": "warning", "value": 2, "color": "33"},
-        {"name": "error", "value": 3, "color": "31"}
+        {
+            "name": "ignore",
+            "value": 0,
+            "color": "0"
+        },
+        {
+            "name": "info",
+            "value": 1,
+            "color": "0"
+        },
+        {
+            "name": "warning",
+            "value": 2,
+            "color": "33"
+        },
+        {
+            "name": "error",
+            "value": 3,
+            "color": "31"
+        }
     ],
-    
     "checkDetails": [
-        {"checkName": "pipeline_without_triggers", "severity": "ignore"},
-        {"checkName": "pipeline_impossible_execution_chain", "severity": "info"},
-        {"checkName": "pipeline_description", "severity": "warning"},
-        {"checkName": "pipeline_not_in_folder", "severity": "error"},
-        {"checkName": "pipeline_without_annotation", "severity": "info"},
-        {"checkName": "dataflow_without_description", "severity": "warning"},
-        {"checkName": "activity_timeout_value", "severity": "error"},
-        {"checkName": "activity_description", "severity": "warning"},
-        {"checkName": "activity_batch_size_unset", "severity": "warning"},
-        {"checkName": "activity_batch_size_less_than_max", "severity": "warning"},
-        {"checkName": "linked_service_not_using_key_vault", "severity": "warning"},
-        {"checkName": "linked_service_not_in_use", "severity": "warning"},
-        {"checkName": "linked_service_without_description", "severity": "warning"},
-        {"checkName": "linked_service_without_annotation", "severity": "info"},
-        {"checkName": "dataset_not_in_use", "severity": "warning"},
-        {"checkName": "dataset_without_description", "severity": "warning"},
-        {"checkName": "dataset_not_in_folder", "severity": "error"},
-        {"checkName": "dataset_without_annotation", "severity": "info"},
-        {"checkName": "trigger_not_in_use", "severity": "error"},
-        {"checkName": "trigger_without_description", "severity": "warning"},
-        {"checkName": "trigger_without_annotation", "severity": "info"},
-        {"checkName": "lookup_sql_timeout", "severity": "error"},
-        {"checkName": "naming_convention_pipeline", "severity": "error"},
-        {"checkName": "naming_convention_activity", "severity": "error"},
-        {"checkName": "naming_convention_dataset", "severity": "error"},
-        {"checkName": "naming_convention_sqlscripts", "severity": "error"},
-        {"checkName": "naming_convention_linked_service", "severity": "error"}
+        {
+            "checkName": "pipeline_without_triggers",
+            "severity": "ignore"
+        },
+        {
+            "checkName": "pipeline_impossible_execution_chain",
+            "severity": "info"
+        },
+        {
+            "checkName": "pipeline_description",
+            "severity": "warning"
+        },
+        {
+            "checkName": "pipeline_not_in_folder",
+            "severity": "error"
+        },
+        {
+            "checkName": "pipeline_without_annotation",
+            "severity": "info"
+        },
+        {
+            "checkName": "dataflow_without_description",
+            "severity": "warning"
+        },
+        {
+            "checkName": "activity_timeout_value",
+            "severity": "error"
+        },
+        {
+            "checkName": "activity_description",
+            "severity": "warning"
+        },
+        {
+            "checkName": "activity_batch_size_unset",
+            "severity": "warning"
+        },
+        {
+            "checkName": "activity_batch_size_less_than_max",
+            "severity": "warning"
+        },
+        {
+            "checkName": "linked_service_not_using_key_vault",
+            "severity": "warning"
+        },
+        {
+            "checkName": "linked_service_not_in_use",
+            "severity": "warning"
+        },
+        {
+            "checkName": "linked_service_without_description",
+            "severity": "warning"
+        },
+        {
+            "checkName": "linked_service_without_annotation",
+            "severity": "info"
+        },
+        {
+            "checkName": "dataset_not_in_use",
+            "severity": "warning"
+        },
+        {
+            "checkName": "dataset_without_description",
+            "severity": "warning"
+        },
+        {
+            "checkName": "dataset_not_in_folder",
+            "severity": "error"
+        },
+        {
+            "checkName": "dataset_without_annotation",
+            "severity": "info"
+        },
+        {
+            "checkName": "trigger_not_in_use",
+            "severity": "error"
+        },
+        {
+            "checkName": "trigger_without_description",
+            "severity": "warning"
+        },
+        {
+            "checkName": "trigger_without_annotation",
+            "severity": "info"
+        },
+        {
+            "checkName": "lookup_sql_timeout",
+            "severity": "error"
+        },
+        {
+            "checkName": "naming_convention_pipeline",
+            "severity": "error"
+        },
+        {
+            "checkName": "naming_convention_activity",
+            "severity": "error"
+        },
+        {
+            "checkName": "naming_convention_dataset",
+            "severity": "error"
+        },
+        {
+            "checkName": "naming_convention_sqlscripts",
+            "severity": "error"
+        },
+        {
+            "checkName": "naming_convention_linked_service",
+            "severity": "error"
+        }
     ],
-
     "prefixNamingConvention": [
-        {"objectName": "Pipeline", "prefix": "PL"},
-        {"objectName": "Dataset", "prefix": "DS"},
-        {"objectName": "Lookup", "prefix": "LKP"},
-        {"objectName": "GetMetadata", "prefix": "GM"},
-        {"objectName": "SetVariable", "prefix": "SET"},
-        {"objectName": "AppendVariable", "prefix": "APV"},
-        {"objectName": "ForEach", "prefix": "FE"},
-        {"objectName": "Filter", "prefix": "FLT"},
-        {"objectName": "Fail", "prefix": "FAIL"},
-        {"objectName": "SqlServerStoredProcedure", "prefix": "SP"},
-        {"objectName": "Copy", "prefix": "CP"},
-        {"objectName": "ExecuteDataFlow", "prefix": "DF"},
-        {"objectName": "AzureDataExplorerCommand", "prefix": "ADE"},
-        {"objectName": "AzureFunctionActivity", "prefix": "AF"},
-        {"objectName": "Custom", "prefix": "CST"},
-        {"objectName": "DatabricksNotebook", "prefix": "NB"},
-        {"objectName": "DatabricksSparkJar", "prefix": "JAR"},
-        {"objectName": "DatabricksSparkPython", "prefix": "PY"},
-        {"objectName": "DataLakeAnalyticsU-SQL", "prefix": "US"},
-        {"objectName": "Delete", "prefix": "DEL"},
-        {"objectName": "ExecutePipeline", "prefix": "EXP"},
-        {"objectName": "ExecuteSSISPackage", "prefix": "EXS"},
-        {"objectName": "Validation", "prefix": "VAL"},
-        {"objectName": "WebActivity", "prefix": "WEB"},
-        {"objectName": "WebHook", "prefix": "WHK"},
-        {"objectName": "Wait", "prefix": "WT"},
-        {"objectName": "HDInsightHive", "prefix": "HB"},
-        {"objectName": "HDInsightMapReduce", "prefix": "MR"},
-        {"objectName": "HDInsightPig", "prefix": "PIG"},
-        {"objectName": "HDInsightSpark", "prefix": "SPK"},
-        {"objectName": "HDInsightStreaming", "prefix": "STR"},
-        {"objectName": "IfCondition", "prefix": "IF"},
-        {"objectName": "Switch", "prefix": "SW"},
-        {"objectName": "Until", "prefix": "UNT"},
-        {"objectName": "AzureMLBatchExecution", "prefix": "MLB"},
-        {"objectName": "AzureMLUpdateResource", "prefix": "MLU"},
-        {"objectName": "AzureMLExecutePipeline", "prefix": "MLE"},
-        {"objectName": "ExecuteWranglingDataflow", "prefix": "PQ"},
-        {"objectName": "LinkedService", "prefix": "LS"},
-        {"objectName": "SqlQuery", "prefix": "SQL"}
+        {
+            "objectName": "Pipeline",
+            "prefix": "PL"
+        },
+        {
+            "objectName": "Dataset",
+            "prefix": "DS"
+        },
+        {
+            "objectName": "Lookup",
+            "prefix": "LKP"
+        },
+        {
+            "objectName": "GetMetadata",
+            "prefix": "GM"
+        },
+        {
+            "objectName": "SetVariable",
+            "prefix": "SET"
+        },
+        {
+            "objectName": "AppendVariable",
+            "prefix": "APV"
+        },
+        {
+            "objectName": "ForEach",
+            "prefix": "FE"
+        },
+        {
+            "objectName": "Filter",
+            "prefix": "FLT"
+        },
+        {
+            "objectName": "Fail",
+            "prefix": "FAIL"
+        },
+        {
+            "objectName": "SqlServerStoredProcedure",
+            "prefix": "SP"
+        },
+        {
+            "objectName": "Copy",
+            "prefix": "CP"
+        },
+        {
+            "objectName": "ExecuteDataFlow",
+            "prefix": "DF"
+        },
+        {
+            "objectName": "AzureDataExplorerCommand",
+            "prefix": "ADE"
+        },
+        {
+            "objectName": "AzureFunctionActivity",
+            "prefix": "AF"
+        },
+        {
+            "objectName": "Custom",
+            "prefix": "CST"
+        },
+        {
+            "objectName": "DatabricksNotebook",
+            "prefix": "NB"
+        },
+        {
+            "objectName": "DatabricksSparkJar",
+            "prefix": "JAR"
+        },
+        {
+            "objectName": "DatabricksSparkPython",
+            "prefix": "PY"
+        },
+        {
+            "objectName": "DataLakeAnalyticsU-SQL",
+            "prefix": "US"
+        },
+        {
+            "objectName": "Delete",
+            "prefix": "DEL"
+        },
+        {
+            "objectName": "ExecutePipeline",
+            "prefix": "EXP"
+        },
+        {
+            "objectName": "ExecuteSSISPackage",
+            "prefix": "EXS"
+        },
+        {
+            "objectName": "Validation",
+            "prefix": "VAL"
+        },
+        {
+            "objectName": "WebActivity",
+            "prefix": "WEB"
+        },
+        {
+            "objectName": "WebHook",
+            "prefix": "WHK"
+        },
+        {
+            "objectName": "Wait",
+            "prefix": "WT"
+        },
+        {
+            "objectName": "HDInsightHive",
+            "prefix": "HB"
+        },
+        {
+            "objectName": "HDInsightMapReduce",
+            "prefix": "MR"
+        },
+        {
+            "objectName": "HDInsightPig",
+            "prefix": "PIG"
+        },
+        {
+            "objectName": "HDInsightSpark",
+            "prefix": "SPK"
+        },
+        {
+            "objectName": "HDInsightStreaming",
+            "prefix": "STR"
+        },
+        {
+            "objectName": "IfCondition",
+            "prefix": "IF"
+        },
+        {
+            "objectName": "Switch",
+            "prefix": "SW"
+        },
+        {
+            "objectName": "Until",
+            "prefix": "UNT"
+        },
+        {
+            "objectName": "AzureMLBatchExecution",
+            "prefix": "MLB"
+        },
+        {
+            "objectName": "AzureMLUpdateResource",
+            "prefix": "MLU"
+        },
+        {
+            "objectName": "AzureMLExecutePipeline",
+            "prefix": "MLE"
+        },
+        {
+            "objectName": "ExecuteWranglingDataflow",
+            "prefix": "PQ"
+        },
+        {
+            "objectName": "LinkedService",
+            "prefix": "LS"
+        },
+        {
+            "objectName": "SqlQuery",
+            "prefix": "SQL"
+        }
     ],
-
-    "charsNamingConvention":"a-zA-Z0-9_"
+    "charsNamingConvention": "a-zA-Z0-9_"
 }
