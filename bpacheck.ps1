@@ -1,3 +1,7 @@
+#requires -Version 6.2
+# reason: the Join-String cmdlet shipped with this version
+
+
 # Retrieve all arguments
 [CmdletBinding()]
 param (
@@ -99,12 +103,12 @@ if (-not (Test-Path -Path $inputpath)) {
 
 if ($isFolder) {
     # Parse folder into resource parts
-    $LinkedServices = Get-ChildItem -Recurse "$($inputpath)\linkedService" | ForEach-Object { Get-Content $_ | ConvertFrom-Json }
-    $Datasets = Get-ChildItem -Recurse "$($inputpath)\dataset" | ForEach-Object { Get-Content $_ | ConvertFrom-Json }
-    $Pipelines = Get-ChildItem -Recurse "$($inputpath)\pipeline" | ForEach-Object { Get-Content $_ | ConvertFrom-Json }
-    $DataFlows = Get-ChildItem -Recurse "$($inputpath)\dataflow" | ForEach-Object { Get-Content $_ | ConvertFrom-Json }
-    $Triggers = Get-ChildItem -Recurse "$($inputpath)\trigger" | ForEach-Object { Get-Content $_ | ConvertFrom-Json }
-    $SQLScripts = Get-ChildItem -Recurse "$($inputpath)\sqlscript" | ForEach-Object { Get-Content $_ | ConvertFrom-Json }
+    $LinkedServices = Get-ChildItem -Recurse "$($inputpath)\linkedService" | ForEach-Object { Get-Content $_.FullName | ConvertFrom-Json }
+    $Datasets = Get-ChildItem -Recurse "$($inputpath)\dataset" | ForEach-Object { Get-Content $_.FullName | ConvertFrom-Json }
+    $Pipelines = Get-ChildItem -Recurse "$($inputpath)\pipeline" | ForEach-Object { Get-Content $_.FullName | ConvertFrom-Json }
+    $DataFlows = Get-ChildItem -Recurse "$($inputpath)\dataflow" | ForEach-Object { Get-Content $_.FullName | ConvertFrom-Json }
+    $Triggers = Get-ChildItem -Recurse "$($inputpath)\trigger" | ForEach-Object { Get-Content $_.FullName | ConvertFrom-Json }
+    $SQLScripts = Get-ChildItem -Recurse "$($inputpath)\sqlscript" | ForEach-Object { Get-Content $_.FullName | ConvertFrom-Json }
 
     $resources = @($LinkedServices; $Datasets; $Pipelines; $DataFlows; $Triggers; $SQLScripts)
 }
