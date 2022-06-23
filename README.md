@@ -42,7 +42,7 @@ This way of setting up the BPA relies on ADF or Synapse code that is compiled to
 # Run Best Practice checks
 - task: PowerShell@2
   inputs:
-    filePath: '$(Build.Repository.LocalPath)/BITools/bpacheck.ps1'
+    filePath: '$(Build.Repository.LocalPath)/BITools/Check-BPA.ps1'
     arguments: '$(Build.Repository.LocalPath)/resourceName/ARMTemplateForFactory.json'
     errorActionPreference: 'stop'
   displayName: 'Run Best Practice Analyser'
@@ -58,7 +58,7 @@ To point to a folder with precompiled json files (such as in the master branch.)
 # Run Best Practice checks
 - task: PowerShell@2
   inputs:
-    filePath: '$(Build.Repository.LocalPath)/BITools/bpacheck.ps1'
+    filePath: '$(Build.Repository.LocalPath)/BITools/Check-BPA.ps1'
     arguments: '$(Build.Repository.LocalPath)/resourceFolder'
     errorActionPreference: 'stop'
   displayName: 'Run Best Practice Analyser'
@@ -75,7 +75,7 @@ We recommend that you copy this to a new file, and modifies the copy per your re
 # Run Best Practice checks
 - task: PowerShell@2
   inputs:
-    filePath: '$(Build.Repository.LocalPath)/BITools/bpacheck.ps1'
+    filePath: '$(Build.Repository.LocalPath)/BITools/Check-BPA.ps1'
     arguments: '$(Build.Repository.LocalPath)/resourceName/ARMTemplateForFactory.json $(Build.Repository.LocalPath)/BITools/MySuperDuperConfig.json'
     errorActionPreference: 'stop'
   displayName: 'Run Best Practice Analyser'
